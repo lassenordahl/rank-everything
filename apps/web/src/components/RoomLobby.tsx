@@ -1,76 +1,42 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ApiClient } from '../lib/api';
-import { usePartySocket } from '../hooks/usePartySocket';
+import { useGameRoom } from '../hooks/useGameRoom';
 import { useJoinRoom, useStartGame } from '../hooks/useGameMutations';
-import type { Room } from '@rank-everything/shared-types';
 import { MAX_NICKNAME_LENGTH } from '@rank-everything/validation';
 
 export default function RoomLobby() {
   const { code } = useParams<{ code: string }>();
+  // const navigate = useNavigate(); // handled by hook now? Navigate on start handled by hook?
+  // No, useGameRoom handles navigation on 'game_started'.
+  // But wait, explicit navigation actions (like Join onSuccess) might still need it.
   const navigate = useNavigate();
-  const [room, setRoom] = useState<Room | null>(null);
-  const [nickname, setNickname] = useState('');
-  const playerId = localStorage.getItem('playerId');
-  const [error, setError] = useState<string | null>(null);
 
-  const { lastMessage } = usePartySocket(code || '');
+  const [nickname, setNickname] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const { room, error: roomError, isHost } = useGameRoom(code || '');
+  console.log(`[RoomLobby] Rendering. Room: ${room?.id}, Players: ${room?.players?.length || 0}`);
   const joinRoom = useJoinRoom();
   const startGame = useStartGame();
 
-  useEffect(() => {
-    // Initial fetch via HTTP to prevent "Loading..." hang on mobile
-    if (code && !room) {
-      ApiClient.getRoom(code)
-        .then(data => setRoom(data.room))
-        .catch(err => console.error('Failed to fetch initial room state:', err));
-    }
-  }, [code]); // Run once on mount (or code change)
+  const error = localError || (roomError?.message ?? null);
+  const playerId = localStorage.getItem('playerId');
 
-  useEffect(() => {
-    if (lastMessage) {
-      try {
-        const event = JSON.parse(lastMessage);
-        if (event.type === 'room_updated') {
-          setRoom(event.room);
-          setError(null); // Clear errors on success
-        }
-        if (event.type === 'game_started') {
-          navigate(`/game/${code}`);
-        }
-        if (event.type === 'error') {
-          setError(event.message || 'An unknown error occurred');
-        }
-        if (event.type === 'player_left') {
-           // If we just get a player ID left, we might not have the full room update
-           // But server sends room_updated for lobby removals now.
-           // For game disconnects, it sends player_left.
-           // We should probably rely on the room state being updated?
-           // The RoomLobby list relies on `room.players`.
-           // If we receive `player_left`, we need to update state locally OR wait for `room_updated`.
-           // Server logic I wrote sends `broadcast({ type: 'player_left', playerId })` for game disconnects.
-           // It sends `room_updated` for lobby removals.
-           // So for game disconnects, we need to update the player's connection status locally?
-           // OR server should just send `room_updated` always?
-           // For now, let's keep it simple.
-        }
-      } catch {
-        // Ignore parse errors
-      }
-    }
-  }, [lastMessage, code, navigate]);
+  // Effects removed!
 
   const handleStartGame = async () => {
     if (!code) return;
-    setError(null);
+    setLocalError(null);
     startGame.mutate(code, {
-      onError: (error) => setError(error.message)
+      onSuccess: () => navigate(`/game/${code}`),
+      onError: (error) => setLocalError(error.message)
     });
   };
 
   const handleJoin = async () => {
     if (!nickname.trim() || !code) return;
-    setError(null);
+    setLocalError(null);
 
     joinRoom.mutate({ code, nickname }, {
       onSuccess: (data) => {
@@ -78,12 +44,10 @@ export default function RoomLobby() {
         localStorage.setItem('roomCode', code);
         window.location.reload();
       },
-      onError: (error) => setError(error.message)
+      onError: (error) => setLocalError(error.message)
     });
   };
 
-  const isHost = room?.hostPlayerId === playerId;
-  const canStart = room && room.players.length >= 1;
   const isJoined = room?.players.some(p => p.id === playerId);
 
   // Loading state
@@ -117,11 +81,7 @@ export default function RoomLobby() {
               autoFocus
             />
 
-            {error && (
-              <div className="p-3 bg-red-100/10 border border-red-500/50 text-red-500 rounded text-sm text-center">
-                {error}
-              </div>
-            )}
+            {/* Error used to be here, but we have a main error block below room code now */}
 
             <button
               onClick={handleJoin}
@@ -139,9 +99,20 @@ export default function RoomLobby() {
   return (
     <div className="min-h-full flex flex-col items-center p-6">
       {/* Room Code */}
+      {/* Room Code */}
       <div className="text-center mb-8">
         <p className="text-muted mb-2">Room Code</p>
-        <h1 className="text-6xl font-bold tracking-widest">{code}</h1>
+        <h1 className="text-6xl font-bold tracking-widest mb-4">{code}</h1>
+        <button
+          onClick={() => {
+            navigator.clipboard.writeText(window.location.href);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          }}
+          className="btn btn-secondary text-sm py-2 px-4"
+        >
+          {copied ? '✅  Copied Link!' : '🔗  Copy Link'}
+        </button>
       </div>
 
       {error && (
@@ -191,10 +162,10 @@ export default function RoomLobby() {
       {isHost && (
         <button
           onClick={handleStartGame}
-          disabled={!canStart || startGame.isPending}
+          disabled={!(room && room.players.length >= 1) || startGame.isPending}
           className="btn disabled:opacity-50"
         >
-          {startGame.isPending ? 'Starting...' : (canStart ? 'Start Game' : 'Need 1+ Players')}
+          {startGame.isPending ? 'Starting...' : (room && room.players.length >= 1 ? 'Start Game' : 'Need 1+ Players')}
         </button>
       )}
 

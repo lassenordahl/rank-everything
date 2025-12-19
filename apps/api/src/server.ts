@@ -304,6 +304,41 @@ export default class GameRoom implements Party.Server {
       // So yes, we delete the *socket connection ID* mapping.
       // The player entity remains in `state.room.players` (unless lobby removal).
 
+
+      // Check if room is empty (no players left at all)
+      if (this.gameState.room && this.gameState.room.players.length === 0) {
+          console.log(`Room ${this.room.id} empty, deleting.`);
+          this.gameState.reset();
+          await this.room.storage.delete('room'); // Clear persistence
+          return;
+      }
+
+      // Also check if room is "effectively" empty for game state?
+      // User said: "If they are the only user in the room, close out the room."
+      // This implies if 1 user is left? Or if 0 users? "If they [the host] leaves... If they are the only user... close out".
+      // This likely means: If the user who just left was the *last* user.
+      // My check `players.length === 0` covers this (after removal).
+      // But if it's In-Game, `removePlayer` isn't called, just disconnect.
+      // So `players.length` is still > 0.
+      // User said "If they are the only user in the room, close out the room."
+      // If I am playing a game and my opponent disconnects, I shouldn't be kicked out immediately.
+      // But if I leave (disconnect) and I was the only one connected?
+      // "If they are the only user in the room" -> singular.
+      // Maybe they mean if 1 person created a room, then left. (Lobby).
+      // Or if everyone left.
+      // I'll stick to: If 0 players remain in Lobby -> Delete.
+      // If In-Game? We shouldn't delete immediately on disconnect usually.
+      // But if all players disconnect?
+
+      // Let's stick to the explicit instruction: "If they are the only user in the room, close out the room."
+      // If I am the only user, and I leave -> 0 users.
+      // So checking `players.length === 0` (for Lobby) covers "I was the only user and I left".
+
+      // What if In-Game and everyone disconnects?
+      // Since `removePlayer` isn't called, `players.length` > 0.
+      // We persist state. This allows reconnect. This is correct behavior for games.
+      // The user likely meant: "If I create a room (1 user), and leave, delete it." -> Handled.
+
       if (this.gameState.room) await this.room.storage.put('room', this.gameState.room);
     }
   }

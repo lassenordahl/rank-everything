@@ -62,7 +62,16 @@ export class GameRoomState {
 
   removePlayer(playerId: string) {
     if (!this.state.room) return;
+
+    const wasHost = this.state.room.hostPlayerId === playerId;
     this.state.room.players = this.state.room.players.filter(p => p.id !== playerId);
+
+    if (wasHost && this.state.room.players.length > 0) {
+      // Migrate host to the next player (e.g., the one who joined earliest after the host)
+      // Since players list is typically ordered by join time (push), [0] is the next oldest.
+      this.state.room.hostPlayerId = this.state.room.players[0].id;
+    }
+
     this.state.room.lastActivityAt = Date.now();
   }
 
@@ -92,6 +101,9 @@ export class GameRoomState {
     this.state.room.status = 'in-progress';
     this.state.room.currentTurnIndex = 0;
     this.state.room.currentTurnPlayerId = this.state.room.players[0].id;
+    this.state.room.timerEndAt = this.state.room.config.timerEnabled
+      ? Date.now() + (this.state.room.config.timerDuration * 1000)
+      : null;
     this.state.room.lastActivityAt = Date.now();
   }
 
@@ -111,6 +123,16 @@ export class GameRoomState {
     this.state.room.lastActivityAt = Date.now();
 
     return { previousTurnPlayerId, nextTurnPlayerId: nextPlayer.id };
+  }
+
+  checkTurnTimeout(now: number = Date.now()): boolean {
+    if (!this.state.room || !this.state.room.timerEndAt) return false;
+
+    if (now > this.state.room.timerEndAt) {
+      this.advanceTurn();
+      return true;
+    }
+    return false;
   }
 
   reset() {

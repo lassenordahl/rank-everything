@@ -1,27 +1,22 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { usePartySocket } from '../hooks/usePartySocket';
-import type { Room, Item } from '@rank-everything/shared-types';
+import { useGameRoom } from '../hooks/useGameRoom';
+import type { Item } from '@rank-everything/shared-types';
 import RevealScreen from './RevealScreen';
 import RandomRollModal from './RandomRollModal';
 
 export default function GameView() {
   const { code } = useParams<{ code: string }>();
-  const [room, setRoom] = useState<Room | null>(null);
   const [inputText, setInputText] = useState('');
   const [currentItem, setCurrentItem] = useState<Item | null>(null);
   const [showRandomRoll, setShowRandomRoll] = useState(false);
-  const playerId = localStorage.getItem('playerId');
 
-  const { sendMessage, lastMessage } = usePartySocket(code || '');
+  const { room, sendMessage, lastMessage, isMyTurn, playerId } = useGameRoom(code || '');
 
   useEffect(() => {
     if (lastMessage) {
       try {
         const event = JSON.parse(lastMessage);
-        if (event.type === 'room_updated') {
-          setRoom(event.room);
-        }
         if (event.type === 'item_submitted') {
           setCurrentItem(event.item);
         }
@@ -36,7 +31,6 @@ export default function GameView() {
     return <RevealScreen room={room} playerId={playerId} />;
   }
 
-  const isMyTurn = room?.currentTurnPlayerId === playerId;
   const currentPlayer = room?.players.find(p => p.id === room?.currentTurnPlayerId);
   const myRankings = room?.players.find(p => p.id === playerId)?.rankings || {};
 

@@ -55,8 +55,8 @@ export async function handleJoinRoom(
 
   state.addPlayer(player);
 
-  // Broadcast player joined
-  broadcast({ type: 'player_joined', player });
+  // Broadcast update
+  broadcast({ type: 'room_updated', room: state.room });
 
   return new Response(JSON.stringify({
     playerId,

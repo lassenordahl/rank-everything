@@ -10,5 +10,16 @@ export function usePartySocket(roomCode: string) {
     }
   }, [roomCode, joinRoom]);
 
+  useEffect(() => {
+    if (!lastMessage) return;
+    try {
+        const event = JSON.parse(lastMessage);
+        if (event.type === 'game_started') {
+            const code = window.location.pathname.split('/').pop();
+            console.log(`[useGameRoom] Game started event received for room ${code}`);
+        }
+    } catch(e) {}
+  }, [lastMessage]);
+
   return { sendMessage, lastMessage, isConnected };
 }
