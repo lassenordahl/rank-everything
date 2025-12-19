@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useGameRoom } from '../hooks/useGameRoom';
 import { useEmojiClassifier } from '../hooks/useEmojiClassifier';
 import type { Item } from '@rank-everything/shared-types';
 import RevealScreen from './RevealScreen';
 import RandomRollModal from './RandomRollModal';
 import { COPY } from '../lib/copy';
+import { transitions } from '../lib/design-tokens';
+import { RankingList, RankingSlot, GameSubmission } from './ui';
 import TimerProgressBar from './TimerProgressBar';
 
 export default function GameView() {
@@ -15,7 +18,7 @@ export default function GameView() {
   const [showRandomRoll, setShowRandomRoll] = useState(false);
   const [now, setNow] = useState(Date.now());
 
-  const { room, sendMessage, isMyTurn, playerId } = useGameRoom(code || '');
+  const { room, sendMessage, isMyTurn, isHost, playerId } = useGameRoom(code || '');
 
   // Emoji classification from local LLM
   const {
@@ -43,7 +46,9 @@ export default function GameView() {
 
   // Show reveal screen if game has ended
   if (room?.status === 'ended' && playerId) {
-    return <RevealScreen room={room} playerId={playerId} />;
+    return (
+      <RevealScreen room={room} playerId={playerId} isHost={isHost} sendMessage={sendMessage} />
+    );
   }
 
   const currentPlayer = room?.players.find((p) => p.id === room?.currentTurnPlayerId);
@@ -97,124 +102,132 @@ export default function GameView() {
   return (
     <div className="min-h-full flex flex-col p-6">
       {/* Header */}
-      <div className="text-center mb-4">
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={transitions.default}
+        className="text-center mb-4"
+      >
         <p className="text-sm text-muted">Room {code}</p>
-        <p className="text-lg font-bold">{room?.items.length || 0} / 10 items</p>
-        {timerRemaining !== null && timerRemaining > 0 && room?.config.timerDuration && (
+        <p className="text-lg font-bold">
+          {room?.items.length || 0} / {room?.config.itemsPerGame ?? 10} items
+        </p>
+      </motion.div>
+
+      {/* Timer Bar */}
+      {timerRemaining !== null && timerRemaining > 0 && room?.config.timerDuration && (
+        <motion.div
+          initial={{ opacity: 0, scaleX: 0 }}
+          animate={{ opacity: 1, scaleX: 1 }}
+          className="mb-4"
+        >
           <TimerProgressBar
             secondsRemaining={timerRemaining}
             totalSeconds={room.config.timerDuration}
           />
-        )}
-      </div>
+        </motion.div>
+      )}
 
       {/* Turn Indicator */}
-      <div className="text-center mb-6">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.1 }}
+        className="text-center mb-6"
+      >
         {isMyTurn ? (
-          <p className="text-2xl font-bold">{COPY.game.yourTurn}</p>
+          <motion.div
+            className="badge-active inline-flex"
+            animate={{ scale: [1, 1.02, 1] }}
+            transition={{ repeat: Infinity, duration: 2 }}
+          >
+            {COPY.game.yourTurn}
+          </motion.div>
         ) : (
-          <p className="text-xl text-muted">
+          <div className="badge-waiting inline-flex">
+            <span className="animate-pulse">●</span>
             {COPY.game.waitingFor} {currentPlayer?.nickname || '...'}
-          </p>
+          </div>
         )}
-      </div>
+      </motion.div>
 
       {/* Submit Item (when it's your turn and no item to rank) */}
-      {isMyTurn && !effectiveCurrentItem && (
-        <div className="card mb-6">
-          <div className="flex items-center gap-3 mb-4">
-            {/* Emoji Preview Box */}
-            <div className="w-12 h-12 flex items-center justify-center border-2 border-black flex-shrink-0">
-              {isModelLoading ? (
-                <span className="text-xs text-muted text-center leading-tight">
-                  {modelProgress > 0 ? `${modelProgress}%` : 'AI...'}
-                </span>
-              ) : isClassifying ? (
-                <span className="animate-pulse text-2xl">⏳</span>
-              ) : classifiedEmoji ? (
-                <span className="text-2xl">{classifiedEmoji}</span>
-              ) : (
-                <span className="text-2xl text-muted">❓</span>
-              )}
-            </div>
-
-            {/* Text Input */}
-            <input
-              type="text"
-              placeholder={COPY.game.enterItem}
+      <AnimatePresence mode="wait">
+        {isMyTurn && !effectiveCurrentItem && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={transitions.default}
+            className="mb-6"
+          >
+            <GameSubmission
               value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSubmitItem()}
-              className="input flex-1"
-              maxLength={100}
-              autoFocus
+              onChange={setInputText}
+              onSubmit={handleSubmitItem}
+              onRandomClick={() => setShowRandomRoll(true)}
+              isClassifying={isClassifying}
+              isModelLoading={isModelLoading}
+              modelProgress={modelProgress}
+              classifiedEmoji={classifiedEmoji}
             />
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={handleSubmitItem}
-              disabled={!inputText.trim()}
-              className="btn flex-1 disabled:opacity-50"
-            >
-              {COPY.game.submit}
-            </button>
-            <button onClick={() => setShowRandomRoll(true)} className="btn" title="Random Roll">
-              🎲
-            </button>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Current Item to Rank */}
-      {effectiveCurrentItem && (
-        <div className="card mb-6 text-center">
-          <p className="text-4xl mb-2">{effectiveCurrentItem.emoji}</p>
-          <p className="text-xl font-bold mb-4">{effectiveCurrentItem.text}</p>
-          <p className="text-muted mb-4">{COPY.game.chooseSlot}</p>
+      <AnimatePresence mode="wait">
+        {effectiveCurrentItem && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={transitions.spring}
+            className="card mb-6 text-center"
+          >
+            <motion.p
+              className="text-5xl mb-2"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={transitions.springBouncy}
+            >
+              {effectiveCurrentItem.emoji}
+            </motion.p>
+            <p className="text-xl font-bold mb-4">{effectiveCurrentItem.text}</p>
+            <p className="text-muted mb-4">{COPY.game.chooseSlot}</p>
 
-          <div className="grid grid-cols-5 gap-2">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-              <button
-                key={n}
-                onClick={() => handleRankItem(n)}
-                disabled={usedSlots.has(n)}
-                className={`
-                  p-3 border-2 border-black font-bold transition-colors
-                  ${usedSlots.has(n) ? 'opacity-30 cursor-not-allowed bg-gray-100' : 'hover:bg-black hover:text-white'}
-                `}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+            <div className="grid grid-cols-5 gap-2">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                <RankingSlot
+                  key={n}
+                  rank={n}
+                  item={null}
+                  onClick={() => handleRankItem(n)}
+                  disabled={usedSlots.has(n)}
+                  interactive={true}
+                />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* My Rankings */}
-      <div className="card mt-auto">
-        <h2 className="font-bold mb-4">{COPY.game.myRankings}</h2>
-        <div className="space-y-1">
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((slot) => {
-            const item = room?.items.find((i) => myRankings[i.id] === slot);
-            return (
-              <div
-                key={slot}
-                className={`flex items-center gap-2 py-1 ${slot === 1 ? 'font-bold' : ''}`}
-              >
-                <span className="w-6 text-right">{slot}.</span>
-                {item ? (
-                  <>
-                    <span>{item.emoji}</span>
-                    <span className="truncate flex-1">{item.text}</span>
-                  </>
-                ) : (
-                  <span className="text-muted">—</span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="mt-auto"
+      >
+        <RankingList
+          rankings={myRankings}
+          items={room?.items || []}
+          itemsPerGame={room?.config.itemsPerGame || 10}
+          showHeader={true}
+          headerTitle={COPY.game.myRankings}
+          animate={true}
+        />
+      </motion.div>
 
       {/* Random Roll Modal */}
       <RandomRollModal

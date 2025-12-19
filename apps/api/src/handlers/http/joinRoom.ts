@@ -22,10 +22,13 @@ export async function handleJoinRoom(
   const result = joinRoomSchema.safeParse({ nickname });
 
   if (!result.success) {
-    return new Response(JSON.stringify({ error: result.error.errors[0].message }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
-    });
+    return new Response(
+      JSON.stringify({ error: result.error.errors[0]?.message ?? 'Invalid input' }),
+      {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      }
+    );
   }
 
   // Check for duplicate nickname

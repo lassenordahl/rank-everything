@@ -1,35 +1,43 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { Room, Player } from '@rank-everything/shared-types';
+import { motion, AnimatePresence } from 'framer-motion';
+import type { Room } from '@rank-everything/shared-types';
+import { transitions } from '../lib/design-tokens';
+import { PlayerAvatar, RankingList } from './ui';
 
 interface RevealScreenProps {
   room: Room;
   playerId: string;
+  isHost: boolean;
+  sendMessage: (message: string) => void;
 }
 
-export default function RevealScreen({ room, playerId }: RevealScreenProps) {
+export default function RevealScreen({ room, playerId, isHost, sendMessage }: RevealScreenProps) {
   const navigate = useNavigate();
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
   const rankingRef = useRef<HTMLDivElement>(null);
 
   const players = room.players;
   const currentPlayer = players[currentPlayerIndex];
+
+  // Guard against undefined player (shouldn't happen but TypeScript requires check)
+  if (!currentPlayer) {
+    return (
+      <div className="min-h-full flex items-center justify-center">
+        <p className="text-muted">No players found</p>
+      </div>
+    );
+  }
+
   const isMyList = currentPlayer.id === playerId;
 
-  // Get sorted rankings for a player
-  const getPlayerRankings = (player: Player) => {
-    const rankings: Array<{ rank: number; item: (typeof room.items)[0] | null }> = [];
-
-    for (let i = 1; i <= 10; i++) {
-      const itemId = Object.entries(player.rankings).find(([, rank]) => rank === i)?.[0];
-      const item = itemId ? (room.items.find((it) => it.id === itemId) ?? null) : null;
-      rankings.push({ rank: i, item });
-    }
-
-    return rankings;
-  };
-
-  const rankings = getPlayerRankings(currentPlayer);
+  // Use simple ranking construction for clipboard text fallback (since RankingList is just UI)
+  const rankings = Array.from({ length: 10 }, (_, i) => {
+    const rank = i + 1;
+    const itemId = Object.entries(currentPlayer.rankings).find(([, r]) => r === rank)?.[0];
+    const item = itemId ? (room.items.find((it) => it.id === itemId) ?? null) : null;
+    return { rank, item };
+  });
 
   // Handle screenshot
   const handleScreenshot = async () => {
@@ -75,8 +83,13 @@ export default function RevealScreen({ room, playerId }: RevealScreenProps) {
   };
 
   const handlePlayAgain = () => {
-    // Navigate back to lobby to start new game
-    navigate(`/room/${room.id}`);
+    if (isHost) {
+      // Host sends reset_room event to reset room for all players
+      sendMessage(JSON.stringify({ type: 'reset_room' }));
+    } else {
+      // Non-host just navigates back to lobby
+      navigate(`/${room.id}`);
+    }
   };
 
   const handleExit = () => {
@@ -88,83 +101,120 @@ export default function RevealScreen({ room, playerId }: RevealScreenProps) {
   return (
     <div className="min-h-full flex flex-col p-6">
       {/* Header */}
-      <div className="text-center mb-6">
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={transitions.default}
+        className="text-center mb-6"
+      >
         <h1 className="text-3xl font-bold mb-2">Game Over!</h1>
         <p className="text-muted">Room {room.id}</p>
-      </div>
+      </motion.div>
 
       {/* Player Selector */}
-      <div className="flex items-center justify-center gap-4 mb-6">
-        <button
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.1 }}
+        className="flex items-center justify-center gap-4 mb-6"
+      >
+        <motion.button
           onClick={goToPrevPlayer}
-          className="p-2 border-2 border-black hover:bg-black hover:text-white"
+          className="btn p-2"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
         >
           ←
-        </button>
+        </motion.button>
 
-        <div className="text-center">
-          <p className="text-xl font-bold">
-            {currentPlayer.nickname}
-            {isMyList && <span className="text-muted text-sm ml-2">(you)</span>}
-          </p>
-          <p className="text-sm text-muted">
-            {currentPlayerIndex + 1} of {players.length}
-          </p>
+        <div className="text-center flex items-center gap-3">
+          <PlayerAvatar name={currentPlayer.nickname} colorIndex={currentPlayerIndex} size="md" />
+          <div>
+            <p className="text-xl font-bold">
+              {currentPlayer.nickname}
+              {isMyList && <span className="text-muted text-sm ml-2">(you)</span>}
+            </p>
+            <p className="text-sm text-muted">
+              {currentPlayerIndex + 1} of {players.length}
+            </p>
+          </div>
         </div>
 
-        <button
+        <motion.button
           onClick={goToNextPlayer}
-          className="p-2 border-2 border-black hover:bg-black hover:text-white"
+          className="btn p-2"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
         >
           →
-        </button>
-      </div>
+        </motion.button>
+      </motion.div>
 
       {/* Rankings Card */}
-      <div ref={rankingRef} className="card mb-6 bg-white">
-        <div className="text-center mb-4 pb-4 border-b-2 border-black">
-          <p className="text-2xl font-bold">{currentPlayer.nickname}'s Rankings</p>
-        </div>
-
-        <div className="space-y-2">
-          {rankings.map(({ rank, item }) => (
-            <div
-              key={rank}
-              className={`flex items-center gap-3 p-2 ${rank === 1 ? 'bg-gray-100' : ''}`}
-            >
-              <span className="w-8 text-xl font-bold text-right">{rank}.</span>
-              {item ? (
-                <>
-                  <span className="text-2xl">{item.emoji}</span>
-                  <span className="flex-1">{item.text}</span>
-                </>
-              ) : (
-                <span className="text-muted">—</span>
-              )}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={currentPlayer.id}
+          ref={rankingRef}
+          initial={{ opacity: 0, x: 50 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -50 }}
+          transition={transitions.default}
+          className="card mb-6 bg-white"
+        >
+          <div className="card w-full max-w-sm">
+            <div className="card-header text-center">
+              <h3 className="font-bold">{currentPlayer.nickname}'s Rankings</h3>
             </div>
-          ))}
-        </div>
+            <RankingList
+              rankings={currentPlayer.rankings}
+              items={room.items || []} // Assuming room.items exists or is derived
+              itemsPerGame={room.config.itemsPerGame}
+              showHeader={false}
+              animate={true}
+            />
+          </div>
 
-        <div className="text-center mt-4 pt-4 border-t border-gray-200">
-          <p className="text-xs text-muted">rankeverything.com • Room {room.id}</p>
-        </div>
-      </div>
+          <div className="text-center mt-4 pt-4 border-t border-neutral-200">
+            <p className="text-xs text-muted">rankeverything.com • Room {room.id}</p>
+          </div>
+        </motion.div>
+      </AnimatePresence>
 
       {/* Actions */}
-      <div className="flex flex-col gap-3 mt-auto">
-        <button onClick={handleScreenshot} className="btn">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="flex flex-col gap-3 mt-auto"
+      >
+        <motion.button
+          onClick={handleScreenshot}
+          className="btn"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
           📸 Save Screenshot
-        </button>
+        </motion.button>
 
         <div className="flex gap-3">
-          <button onClick={handlePlayAgain} className="btn flex-1">
+          <motion.button
+            onClick={handlePlayAgain}
+            className="btn-primary flex-1"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
             Play Again
-          </button>
-          <button onClick={handleExit} className="btn flex-1">
+          </motion.button>
+          <motion.button
+            onClick={handleExit}
+            className="btn flex-1"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
             Exit
-          </button>
+          </motion.button>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

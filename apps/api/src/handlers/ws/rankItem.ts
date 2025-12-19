@@ -24,7 +24,9 @@ export function handleRankItem(
   const result = rankItemSchema.safeParse(message);
 
   if (!result.success) {
-    conn.send(JSON.stringify({ type: 'error', message: result.error.errors[0].message }));
+    conn.send(
+      JSON.stringify({ type: 'error', message: result.error.errors[0]?.message ?? 'Invalid input' })
+    );
     return;
   }
 

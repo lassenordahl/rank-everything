@@ -19,17 +19,19 @@
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",
+    "@rank-everything/qrcode": "workspace:*",
     "@rank-everything/shared-types": "workspace:*",
     "@rank-everything/validation": "workspace:^",
-    "@tanstack/react-query": "^5.90.12",
+    "@tanstack/react-query": "^5.17.19",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
+    "framer-motion": "^12.23.26",
     "html2canvas": "^1.4.1",
     "lucide-react": "^0.330.0",
     "partysocket": "^1.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^6.22.0",
+    "react-router-dom": "^7.1.1",
     "tailwind-merge": "^2.2.0"
   },
   "devDependencies": {

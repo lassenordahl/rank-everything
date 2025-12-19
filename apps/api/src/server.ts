@@ -7,6 +7,8 @@ import { handleStartGame } from './handlers/http/startGame';
 import { handleSubmitItem } from './handlers/ws/submitItem';
 import { handleRankItem } from './handlers/ws/rankItem';
 import { handleSkipTurn } from './handlers/ws/skipTurn';
+import { handleResetRoom } from './handlers/ws/resetRoom';
+import { handleUpdateConfig } from './handlers/ws/updateConfig';
 
 // Grace period before removing disconnected players (60 seconds)
 const DISCONNECT_GRACE_PERIOD_MS = 60 * 1000;
@@ -163,8 +165,11 @@ export default class GameRoom implements Party.Server {
             this.saveToGlobalPool.bind(this),
             this.fetchEmoji.bind(this)
           );
-          // Check if game should end (10 items reached)
-          if (this.gameState.room && this.gameState.room.items.length >= 10) {
+          // Check if game should end (itemsPerGame reached)
+          if (
+            this.gameState.room &&
+            this.gameState.room.items.length >= this.gameState.room.config.itemsPerGame
+          ) {
             this.gameState.endGame();
             this.broadcast({ type: 'game_ended' });
           } else if (this.gameState.room?.config.submissionMode === 'round-robin') {
@@ -228,6 +233,28 @@ export default class GameRoom implements Party.Server {
         case 'reconnect':
           await this.handleReconnect(data.playerId, sender);
           break;
+
+        case 'reset_room': {
+          const resetSuccess = handleResetRoom(sender, this.gameState, (e) => this.broadcast(e));
+          if (resetSuccess && this.gameState.room) {
+            await this.room.storage.put('room', this.gameState.room);
+          }
+          break;
+        }
+
+        case 'update_config': {
+          const configSuccess = handleUpdateConfig(
+            sender,
+            this.gameState,
+            (e) => this.broadcast(e),
+            data.config
+          );
+          if (configSuccess && this.gameState.room) {
+            await this.room.storage.put('room', this.gameState.room);
+          }
+          break;
+        }
+
         default:
           sender.send(JSON.stringify({ type: 'error', message: 'Unknown event type' }));
       }
@@ -257,7 +284,7 @@ export default class GameRoom implements Party.Server {
 
     // Fallback emojis
     const fallbacks = ['🎲', '✨', '🌟', '💫', '🎯', '🎪', '🎭', '🎨'];
-    return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+    return fallbacks[Math.floor(Math.random() * fallbacks.length)] ?? '🎲';
   }
 
   async saveToGlobalPool(text: string, emoji: string): Promise<void> {

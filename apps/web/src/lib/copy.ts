@@ -20,6 +20,8 @@ export const COPY = {
     startGame: 'Start Game',
     copyLink: 'Copy Link',
     copiedLink: 'Copied Link!',
+    shareQR: 'Share QR Code',
+    close: 'Close',
   },
 
   // Form placeholders
@@ -50,6 +52,7 @@ export const COPY = {
     waitingForHost: 'Waiting for host to start...',
     needPlayers: 'Need 1+ Players',
     enterNickname: 'Enter your nickname to join',
+    scanToJoin: 'Scan to join room',
   },
 
   // Errors
@@ -65,8 +68,26 @@ export const COPY = {
     submit: 'Submit',
     chooseSlot: 'Choose a slot (1 = best, 10 = worst):',
     myRankings: 'My Rankings',
-    itemCount: '/ 10 items',
+    itemCount: 'items',
     remaining: 'remaining',
+  },
+
+  // Reveal Screen
+  reveal: {
+    playAgain: 'Play Again',
+    exit: 'Exit',
+    gameOver: 'Game Over!',
+    viewRankings: 'View Rankings',
+  },
+
+  // Settings (editable in lobby)
+  settings: {
+    timerEnabled: 'Turn Timer',
+    timerDuration: 'Timer Duration',
+    submissionMode: 'Submission Mode',
+    roundRobin: 'Round Robin',
+    hostOnly: 'Host Only',
+    seconds: 'seconds',
   },
 } as const;
 

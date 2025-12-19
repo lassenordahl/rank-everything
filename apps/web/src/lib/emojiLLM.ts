@@ -236,7 +236,7 @@ class EmojiLLM {
         const emojiEntry = EMOJI_DATABASE[i + j];
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const embedding = (embeddings as any)[j]?.data || (embeddings as any).data;
-        if (embedding) {
+        if (embedding && emojiEntry) {
           this.emojiEmbeddings.set(emojiEntry.emoji, Array.from(embedding));
         }
       }
@@ -308,9 +308,11 @@ class EmojiLLM {
     let normB = 0;
 
     for (let i = 0; i < a.length; i++) {
-      dotProduct += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
+      const aVal = a[i] ?? 0;
+      const bVal = b[i] ?? 0;
+      dotProduct += aVal * bVal;
+      normA += aVal * aVal;
+      normB += bVal * bVal;
     }
 
     const denominator = Math.sqrt(normA) * Math.sqrt(normB);

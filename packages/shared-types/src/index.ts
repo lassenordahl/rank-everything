@@ -7,6 +7,7 @@ export interface RoomConfig {
   timerEnabled: boolean;
   timerDuration: number; // seconds - for turn/submission timer
   rankingTimeout: number; // seconds - how long players have to rank each item (0 = disabled)
+  itemsPerGame: number; // number of items to submit before game ends (default: 10)
 }
 
 export interface Room {
@@ -101,7 +102,9 @@ export type ClientEvent =
   | { type: 'rank_item'; itemId: string; ranking: number }
   | { type: 'start_game' }
   | { type: 'reconnect'; playerId: string }
-  | { type: 'skip_turn' };
+  | { type: 'skip_turn' }
+  | { type: 'reset_room' }
+  | { type: 'update_config'; config: Partial<RoomConfig> };
 
 export type ServerEvent =
   | { type: 'room_updated'; room: Room }
@@ -113,6 +116,8 @@ export type ServerEvent =
   | { type: 'timer_tick'; secondsRemaining: number }
   | { type: 'game_started' }
   | { type: 'game_ended' }
+  | { type: 'room_reset'; room: Room }
+  | { type: 'config_updated'; config: RoomConfig }
   | { type: 'error'; message: string; code?: string };
 
 // Error codes
@@ -138,3 +143,4 @@ export const MAX_RANKING_SLOTS = 10;
 export const MIN_PLAYERS = 2;
 export const DEFAULT_TIMER_DURATION = 60;
 export const DEFAULT_ROOM_TTL_MINUTES = 10;
+export const DEFAULT_ITEMS_PER_GAME = 10;

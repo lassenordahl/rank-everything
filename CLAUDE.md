@@ -85,7 +85,7 @@ See [CLI_SPEC.md](specs/CLI_SPEC.md) for full command reference.
 
 ## Current State
 
-**Phase**: Core Implementation Complete, Ready for Testing
+**Phase**: Feature Refinement & Production Hardening
 
 **Completed:**
 
@@ -101,6 +101,9 @@ See [CLI_SPEC.md](specs/CLI_SPEC.md) for full command reference.
 - [x] React frontend with all views (HomePage, RoomLobby, GameView, RevealScreen)
 - [x] Random roll modal with Browse/YOLO modes
 - [x] Screenshot functionality (html2canvas)
+- [x] Local LLM Emoji Classification (browser-based WebGPU)
+- [x] Server-side turn timer auto-advance
+- [x] Strict linting and type safety (0 errors/warnings policy)
 
 **Next Steps:**
 
@@ -131,6 +134,17 @@ See [CLI_SPEC.md](specs/CLI_SPEC.md) for full command reference.
 - Sound effects
 
 ## Agent Guidelines for Development
+
+### CRITICAL: Linting & Type Safety
+
+**This project enforces a zero-warning policy for ESLint and TypeScript.**
+
+1. **No `any`**: The use of `any` is forbidden. Use specific types or `unknown` with type guards.
+2. **No non-null assertions**: Do not use `!` to bypass null checks. Use conditional checks or default values.
+3. **No `@ts-ignore`**: Use `@ts-expect-error` if a violation is truly intentional and must be documented.
+4. **Unused variables**: Must be prefixed with `_` (e.g., `_error`) or removed.
+5. **Auto-fixing**: Run `pnpm lint:fix` before committing.
+6. **Verification**: `pnpm lint` and `pnpm test:all` must pass 100%.
 
 ### CRITICAL: Build & Test Verification
 

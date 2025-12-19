@@ -27,6 +27,7 @@ export class GameRoomState {
       timerEnabled: true,
       timerDuration: 60,
       rankingTimeout: 15, // 15 seconds to rank each item
+      itemsPerGame: 10,
     };
 
     const roomConfig: RoomConfig = { ...defaults, ...config };
@@ -76,7 +77,10 @@ export class GameRoomState {
     if (wasHost && this.state.room.players.length > 0) {
       // Migrate host to the next player (e.g., the one who joined earliest after the host)
       // Since players list is typically ordered by join time (push), [0] is the next oldest.
-      this.state.room.hostPlayerId = this.state.room.players[0].id;
+      const nextHost = this.state.room.players[0];
+      if (nextHost) {
+        this.state.room.hostPlayerId = nextHost.id;
+      }
     }
 
     this.state.room.lastActivityAt = Date.now();
@@ -126,9 +130,12 @@ export class GameRoomState {
 
   startGame() {
     if (!this.state.room) return;
+    const firstPlayer = this.state.room.players[0];
+    if (!firstPlayer) return;
+
     this.state.room.status = 'in-progress';
     this.state.room.currentTurnIndex = 0;
-    this.state.room.currentTurnPlayerId = this.state.room.players[0].id;
+    this.state.room.currentTurnPlayerId = firstPlayer.id;
     this.state.room.timerEndAt = this.state.room.config.timerEnabled
       ? Date.now() + this.state.room.config.timerDuration * 1000
       : null;
@@ -140,6 +147,37 @@ export class GameRoomState {
     this.state.room.status = 'ended';
     this.state.room.currentTurnPlayerId = null;
     this.state.room.timerEndAt = null;
+    this.state.room.lastActivityAt = Date.now();
+  }
+
+  /**
+   * Reset room to lobby state for rematch.
+   * Clears items and player rankings but keeps players connected.
+   */
+  resetRoom() {
+    if (!this.state.room) return;
+
+    // Reset room status
+    this.state.room.status = 'lobby';
+    this.state.room.items = [];
+    this.state.room.currentTurnPlayerId = null;
+    this.state.room.currentTurnIndex = 0;
+    this.state.room.timerEndAt = null;
+    this.state.room.rankingTimerEndAt = null;
+    this.state.room.lastActivityAt = Date.now();
+
+    // Clear all player rankings
+    this.state.room.players.forEach((player) => {
+      player.rankings = {};
+    });
+  }
+
+  /**
+   * Update room configuration (host only, lobby state only).
+   */
+  updateConfig(config: Partial<RoomConfig>) {
+    if (!this.state.room) return;
+    this.state.room.config = { ...this.state.room.config, ...config };
     this.state.room.lastActivityAt = Date.now();
   }
 
@@ -216,6 +254,8 @@ export class GameRoomState {
 
     // Pick random slot
     const randomSlot = availableSlots[Math.floor(Math.random() * availableSlots.length)];
+    if (randomSlot === undefined) return null;
+
     player.rankings[itemId] = randomSlot;
 
     return randomSlot;

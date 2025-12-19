@@ -25,10 +25,13 @@ export async function handleCreateRoom(
   const result = createRoomSchema.safeParse({ nickname, config });
 
   if (!result.success) {
-    return new Response(JSON.stringify({ error: result.error.errors[0].message }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json', ...corsHeaders },
-    });
+    return new Response(
+      JSON.stringify({ error: result.error.errors[0]?.message ?? 'Invalid input' }),
+      {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      }
+    );
   }
 
   const hostPlayerId = generateId();

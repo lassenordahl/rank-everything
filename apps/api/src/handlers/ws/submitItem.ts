@@ -13,8 +13,8 @@ export function isValidEmoji(str: string): boolean {
 
   // Comprehensive emoji unicode ranges including variation selectors
   // FE0F is the variation selector that makes text-style emojis display as emoji-style
-  // eslint-disable-next-line no-misleading-character-class
   const emojiRegex =
+    // eslint-disable-next-line no-misleading-character-class
     /^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{1FA00}-\u{1FAFF}\u{2300}-\u{23FF}\u{2B50}\u{2B55}\u{203C}\u{2049}\u{20E3}\u{00A9}\u{00AE}\u{2764}\u{FE0F}]+$/u;
   return emojiRegex.test(str);
 }
@@ -45,7 +45,7 @@ export async function handleSubmitItem(
     conn.send(
       JSON.stringify({
         type: 'error',
-        message: result.error.errors[0].message,
+        message: result.error.errors[0]?.message ?? 'Invalid input',
       })
     );
     return;

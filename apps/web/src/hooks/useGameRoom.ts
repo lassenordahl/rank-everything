@@ -84,6 +84,25 @@ export function useGameRoom(code: string) {
         navigate(`/game/${code}`);
       }
 
+      // Handle room reset (rematch)
+      if (event.type === 'room_reset') {
+        console.log(`[useGameRoom] Room reset, navigating to lobby`);
+        queryClient.setQueryData(['room', code], event.room);
+        navigate(`/${code}`);
+      }
+
+      // Handle config updates
+      if (event.type === 'config_updated') {
+        console.log(`[useGameRoom] Config updated`);
+        queryClient.setQueryData(['room', code], (oldRoom: Room | undefined) => {
+          if (!oldRoom) return oldRoom;
+          return {
+            ...oldRoom,
+            config: event.config,
+          };
+        });
+      }
+
       // Handle "Kicked" or "Room Closed"?
       // if (event.type === 'room_closed') navigate('/');
     } catch (e) {
