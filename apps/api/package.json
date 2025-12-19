@@ -1,0 +1,26 @@
+{
+  "name": "@rank-everything/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "partykit dev",
+    "dev:worker": "wrangler dev",
+    "deploy": "partykit deploy",
+    "deploy:worker": "wrangler deploy",
+    "build": "tsc --noEmit",
+    "clean": "rm -rf dist .partykit .wrangler"
+  },
+  "dependencies": {
+    "@rank-everything/shared-types": "workspace:*",
+    "@rank-everything/db-schema": "workspace:*",
+    "partysocket": "^1.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240208.0",
+    "@types/node": "^20.0.0",
+    "partykit": "^0.0.108",
+    "wrangler": "^3.28.0",
+    "typescript": "^5.3.0"
+  }
+}

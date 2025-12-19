@@ -1,0 +1,28 @@
+# Wrangler configuration for Rank Everything API
+# Used alongside PartyKit for database bindings
+
+name = "rank-everything-api"
+main = "src/worker.ts"
+compatibility_date = "2024-01-01"
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "rank-everything-db"
+database_id = "ab8b990b-f84a-4393-8c6e-55197f90338b"
+
+# KV Namespace for room metadata cache
+[[kv_namespaces]]
+binding = "ROOM_CACHE"
+id = "320f28f2ca1c4862803282cd44164c9d"
+
+# Environment variables (secrets should be set via wrangler secret)
+[vars]
+MAX_ITEM_LENGTH = "100"
+ROOM_TTL_MINUTES = "10"
+ANTHROPIC_USAGE_CAP_DAILY = "1000"
+
+# Local development
+[dev]
+port = 8787
+local_protocol = "http"

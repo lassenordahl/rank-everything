@@ -1,0 +1,23 @@
+{
+  "name": "rank-everything",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "db:migrate": "pnpm --filter @rank-everything/cli run db:migrate",
+    "db:seed": "pnpm --filter @rank-everything/cli run db:seed",
+    "db:reset": "pnpm --filter @rank-everything/cli run db:reset"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "typescript": "^5.3.0"
+  },
+  "packageManager": "pnpm@8.15.0",
+  "engines": {
+    "node": ">=18"
+  }
+}

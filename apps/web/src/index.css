@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  background-color: #ffffff;
+  color: #000000;
+}
+
+#root {
+  height: 100%;
+}
+
+/* Simple button style */
+.btn {
+  @apply px-6 py-3 border-2 border-black font-bold text-lg transition-all;
+}
+
+.btn:hover {
+  @apply bg-black text-white;
+}
+
+.btn:active {
+  @apply scale-95;
+}
+
+/* Input style */
+.input {
+  @apply px-4 py-3 border-2 border-black text-lg w-full outline-none;
+}
+
+.input:focus {
+  @apply ring-2 ring-black ring-offset-2;
+}
+
+/* Card style */
+.card {
+  @apply border-2 border-black p-6;
+}
