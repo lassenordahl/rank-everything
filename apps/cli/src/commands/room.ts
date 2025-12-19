@@ -127,44 +127,70 @@ export const roomCommands = {
     console.log(chalk.cyan(`Simulating ${playerCount}-player game (${speed} mode)`));
     console.log('');
 
-    const sampleItems = [
-      'A warm cup of coffee',
-      'Stubbing your toe',
-      'Finding $20 in your pocket',
-      'Monday mornings',
-      'Pizza at 2am',
-      'Airport security lines',
-      'A perfect sunset',
-      'Running out of phone battery',
-      'Fresh cookies from the oven',
-      'Traffic jams',
-    ];
+    const spinner = ora('Initializing simulation...').start();
 
-    const spinner = ora('Starting game simulation...').start();
+    // Import the simulator locally to avoid load issues if it fails
+    const { runFullGame } = await import('../lib/GameSimulator.js');
 
-    // Simulate game progression
-    for (let i = 0; i < 10; i++) {
-      const delay = speed === 'fast' ? 100 : 2000;
-      await new Promise(resolve => setTimeout(resolve, delay));
+    const result = runFullGame(playerCount);
 
-      spinner.text = `Turn ${i + 1}/10: Player ${(i % playerCount) + 1} submitted "${sampleItems[i]}"`;
+    if (result.errors.length > 0) {
+      spinner.fail(`Simulation failed with ${result.errors.length} errors`);
+      result.errors.forEach(e => console.error(chalk.red(`  - ${e}`)));
+      return;
     }
 
-    spinner.succeed('Game simulation complete');
+    spinner.succeed(`Simulation complete (${result.duration}ms)`);
     console.log('');
-    console.log('Simulated Results:');
+
+    // Process events for display
+    console.log('Game Timeline:');
     console.log(chalk.dim('─'.repeat(40)));
 
-    // Show mock rankings
-    for (let p = 0; p < playerCount; p++) {
-      console.log(chalk.bold(`\nPlayer ${p + 1}:`));
-      const shuffled = [...sampleItems].sort(() => Math.random() - 0.5);
-      shuffled.forEach((item, rank) => {
-        console.log(`  ${rank + 1}. ${item}`);
-      });
+    const maxEvents = 20;
+    const eventsToShow = result.events.slice(0, maxEvents);
+
+    eventsToShow.forEach(event => {
+      const time = new Date(event.timestamp).toISOString().split('T')[1].split('.')[0];
+      let msg = '';
+
+      switch (event.type) {
+        case 'room_created': msg = 'Room created'; break;
+        case 'player_joined': msg = `Player joined: ${(event.data as any).nickname}`; break;
+        case 'game_started': msg = 'Game started'; break;
+        case 'item_submitted': msg = `Item submitted: "${(event.data as any).text}"`; break;
+        case 'turn_changed': msg = `Turn changed to Player`; break;
+        case 'game_ended': msg = 'Game ended'; break;
+        default: msg = event.type;
+      }
+
+      console.log(`[${chalk.dim(time)}] ${msg}`);
+    });
+
+    if (result.events.length > maxEvents) {
+      console.log(chalk.dim(`... and ${result.events.length - maxEvents} more events`));
     }
 
+    console.log('');
+    console.log('Final Standings:');
+    console.log(chalk.dim('─'.repeat(40)));
+
+    result.room.players.forEach(p => {
+      console.log(chalk.bold(`\n${p.nickname}:`));
+      // Sort items by ranking
+      const submittedItems = result.room.items;
+      Object.entries(p.rankings)
+        .sort(([, a], [, b]) => a - b)
+        .forEach(([itemId, rank]) => {
+           const item = submittedItems.find(i => i.id === itemId);
+           if (item) console.log(`  ${rank}. ${item.text}`);
+        });
+    });
+
     if (options.output) {
+      // Save full result to file
+      const fs = await import('fs');
+      fs.writeFileSync(options.output, JSON.stringify(result, null, 2));
       console.log(chalk.dim(`\nGame log saved to: ${options.output}`));
     }
 

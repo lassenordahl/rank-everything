@@ -19,6 +19,23 @@ export const testCommands = {
 
     const rootDir = resolve(process.cwd(), '../..');
 
+    if (suite === 'e2e') {
+      console.log(chalk.cyan('Running E2E tests (Playwright)...'));
+      let command = 'npm run e2e --prefix apps/web';
+
+      if (options.watch) {
+        command = 'npm run e2e:ui --prefix apps/web';
+      }
+
+      try {
+        console.log(chalk.dim(`\n$ ${command}\n`));
+        execSync(command, { cwd: rootDir, stdio: 'inherit' });
+      } catch (e) {
+        process.exit(1);
+      }
+      return;
+    }
+
     let command = 'pnpm test';
 
     if (suite) {

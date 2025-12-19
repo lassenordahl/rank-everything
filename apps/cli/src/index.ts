@@ -91,6 +91,12 @@ program
   .option('--report', 'Generate spec compliance report')
   .action(testCommands.spec);
 
+program
+  .command('test:e2e')
+  .description('Run E2E tests with Playwright')
+  .option('--watch', 'Run in UI mode')
+  .action((options) => testCommands.run('e2e', options));
+
 // Room commands
 const room = program.command('room').description('Room management for testing');
 

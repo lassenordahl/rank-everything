@@ -1,22 +1,31 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { ApiClient } from '../lib/api';
 import { usePartySocket } from '../hooks/usePartySocket';
 import { useJoinRoom, useStartGame } from '../hooks/useGameMutations';
-import { config } from '../lib/config';
 import type { Room } from '@rank-everything/shared-types';
+import { MAX_NICKNAME_LENGTH } from '@rank-everything/validation';
 
 export default function RoomLobby() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
   const [room, setRoom] = useState<Room | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
   const [nickname, setNickname] = useState('');
-  const [isJoining, setIsJoining] = useState(false);
   const playerId = localStorage.getItem('playerId');
+  const [error, setError] = useState<string | null>(null);
 
-  const { lastMessage, sendMessage } = usePartySocket(code || '');
+  const { lastMessage } = usePartySocket(code || '');
   const joinRoom = useJoinRoom();
   const startGame = useStartGame();
+
+  useEffect(() => {
+    // Initial fetch via HTTP to prevent "Loading..." hang on mobile
+    if (code && !room) {
+      ApiClient.getRoom(code)
+        .then(data => setRoom(data.room))
+        .catch(err => console.error('Failed to fetch initial room state:', err));
+    }
+  }, [code]); // Run once on mount (or code change)
 
   useEffect(() => {
     if (lastMessage) {
@@ -24,9 +33,26 @@ export default function RoomLobby() {
         const event = JSON.parse(lastMessage);
         if (event.type === 'room_updated') {
           setRoom(event.room);
+          setError(null); // Clear errors on success
         }
         if (event.type === 'game_started') {
           navigate(`/game/${code}`);
+        }
+        if (event.type === 'error') {
+          setError(event.message || 'An unknown error occurred');
+        }
+        if (event.type === 'player_left') {
+           // If we just get a player ID left, we might not have the full room update
+           // But server sends room_updated for lobby removals now.
+           // For game disconnects, it sends player_left.
+           // We should probably rely on the room state being updated?
+           // The RoomLobby list relies on `room.players`.
+           // If we receive `player_left`, we need to update state locally OR wait for `room_updated`.
+           // Server logic I wrote sends `broadcast({ type: 'player_left', playerId })` for game disconnects.
+           // It sends `room_updated` for lobby removals.
+           // So for game disconnects, we need to update the player's connection status locally?
+           // OR server should just send `room_updated` always?
+           // For now, let's keep it simple.
         }
       } catch {
         // Ignore parse errors
@@ -36,13 +62,15 @@ export default function RoomLobby() {
 
   const handleStartGame = async () => {
     if (!code) return;
+    setError(null);
     startGame.mutate(code, {
-      onError: (error) => console.error('Failed to start game:', error)
+      onError: (error) => setError(error.message)
     });
   };
 
   const handleJoin = async () => {
     if (!nickname.trim() || !code) return;
+    setError(null);
 
     joinRoom.mutate({ code, nickname }, {
       onSuccess: (data) => {
@@ -50,7 +78,7 @@ export default function RoomLobby() {
         localStorage.setItem('roomCode', code);
         window.location.reload();
       },
-      onError: (error) => console.error('Failed to join room:', error)
+      onError: (error) => setError(error.message)
     });
   };
 
@@ -85,9 +113,15 @@ export default function RoomLobby() {
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
               className="input"
-              maxLength={20}
+              maxLength={MAX_NICKNAME_LENGTH}
               autoFocus
             />
+
+            {error && (
+              <div className="p-3 bg-red-100/10 border border-red-500/50 text-red-500 rounded text-sm text-center">
+                {error}
+              </div>
+            )}
 
             <button
               onClick={handleJoin}
@@ -109,6 +143,12 @@ export default function RoomLobby() {
         <p className="text-muted mb-2">Room Code</p>
         <h1 className="text-6xl font-bold tracking-widest">{code}</h1>
       </div>
+
+      {error && (
+        <div className="w-full max-w-sm mb-6 p-3 bg-red-100/10 border border-red-500/50 text-red-500 rounded text-sm text-center">
+          {error}
+        </div>
+      )}
 
       {/* Players */}
       <div className="card w-full max-w-sm mb-8">

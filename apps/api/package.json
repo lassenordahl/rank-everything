@@ -16,6 +16,7 @@
   "dependencies": {
     "@rank-everything/db-schema": "workspace:*",
     "@rank-everything/shared-types": "workspace:*",
+    "@rank-everything/validation": "workspace:^",
     "partysocket": "^1.0.0"
   },
   "devDependencies": {

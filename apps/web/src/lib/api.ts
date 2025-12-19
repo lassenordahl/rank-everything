@@ -19,7 +19,7 @@ export class ApiClient {
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.message || 'Failed to create room');
+      throw new Error(error.error || error.message || 'Failed to create room');
     }
 
     return response.json();
@@ -34,7 +34,7 @@ export class ApiClient {
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.message || 'Failed to join room');
+      throw new Error(error.error || error.message || 'Failed to join room');
     }
 
     return response.json();
@@ -49,7 +49,21 @@ export class ApiClient {
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.message || 'Failed to start game');
+      throw new Error(error.error || error.message || 'Failed to start game');
+    }
+
+    return response.json();
+  }
+
+  static async getRoom(code: string): Promise<{ room: Room }> {
+    const response = await fetch(`${this.baseUrl}/party/${code}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || error.message || 'Failed to get room');
     }
 
     return response.json();

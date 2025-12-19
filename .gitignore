@@ -8,10 +8,13 @@ dist/
 .turbo/
 
 # Environment files
-# .env
+.env
 .env.local
 .env.*.local
 .dev.vars
+
+# PartyKit state (local development)
+.partykit/
 
 # IDE
 .idea/

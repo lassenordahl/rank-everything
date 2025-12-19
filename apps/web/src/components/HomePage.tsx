@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCreateRoom, useJoinRoom } from '../hooks/useGameMutations';
+import { MAX_NICKNAME_LENGTH, ROOM_CODE_LENGTH } from '@rank-everything/validation';
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -80,7 +81,7 @@ export default function HomePage() {
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
             className="input"
-            maxLength={20}
+            maxLength={MAX_NICKNAME_LENGTH}
           />
 
           <button
@@ -113,7 +114,7 @@ export default function HomePage() {
           value={joinCode}
           onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
           className="input text-center text-2xl tracking-widest"
-          maxLength={4}
+          maxLength={ROOM_CODE_LENGTH}
         />
 
         <input
@@ -122,12 +123,12 @@ export default function HomePage() {
           value={nickname}
           onChange={(e) => setNickname(e.target.value)}
           className="input"
-          maxLength={20}
+          maxLength={MAX_NICKNAME_LENGTH}
         />
 
         <button
           onClick={handleJoinRoom}
-          disabled={!nickname.trim() || joinCode.length !== 4 || joinRoom.isPending}
+          disabled={!nickname.trim() || joinCode.length !== ROOM_CODE_LENGTH || joinRoom.isPending}
           className="btn disabled:opacity-50"
         >
           {joinRoom.isPending ? 'Joining...' : 'Join'}

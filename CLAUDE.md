@@ -136,7 +136,8 @@ See [CLI_SPEC.md](specs/CLI_SPEC.md) for full command reference.
 
 2. **Run Tests**:
    ```bash
-   pnpm test --prefix apps/web
+   pnpm test --prefix apps/web  # 76 tests
+   pnpm test --prefix apps/api  # 21 tests
    ```
 
 3. **Check for Runtime Errors**:
@@ -156,31 +157,176 @@ See [CLI_SPEC.md](specs/CLI_SPEC.md) for full command reference.
 1. **Missing imports**: Always add imports when using new components/hooks
 2. **Missing state declarations**: When using `setX()`, ensure `const [x, setX] = useState()` exists
 3. **Breaking changes to shared types**: Check all consumers when modifying types
-4. **Environment variables**: Ensure `.env` files are properly configured
+4. **Environment variables**: Ensure `.env` at monorepo root is properly configured
 
-### Testing Requirements
+---
 
-- **Unit tests**: All API client methods must have tests
-- **Component tests**: Critical user flows must have tests
-- **Test location**: Place tests next to source files (`*.test.ts` or `*.test.tsx`)
-- **Run before PR**: `pnpm test` must pass before considering work complete
+## Testing Architecture
 
-### Error Recovery
+### Test Pyramid
+
+```
+          ┌─────────────────┐
+          │   E2E Tests     │  ← Playwright (real browser + server)
+          │   (few, slow)   │
+          ├─────────────────┤
+          │  Integration    │  ← GameSimulator, API client tests
+          │  (medium)       │
+          ├─────────────────┤
+          │   Unit Tests    │  ← Component tests, hook tests
+          │  (many, fast)   │
+          └─────────────────┘
+```
+
+### Test Files Structure
+
+```
+apps/web/src/
+├── test/
+│   ├── fixtures.ts           # Mock data generators
+│   ├── utils.tsx             # Custom render, mock utilities
+│   ├── GameSimulator.ts      # Full game simulation engine
+│   ├── gameFlow.test.ts      # Game flow integration tests
+│   └── fullGameSimulation.test.ts  # 1-8 player simulations
+├── lib/
+│   ├── api.ts
+│   └── api.test.ts           # API client unit tests
+├── hooks/
+│   ├── useGameMutations.ts
+│   └── useGameMutations.test.ts  # Hook tests
+├── components/
+│   ├── HomePage.tsx
+│   ├── HomePage.test.tsx     # Component tests
+│   ├── RoomLobby.tsx
+│   └── RoomLobby.test.tsx    # Component tests
+
+apps/api/src/
+├── test/
+│   └── fixtures.ts           # Backend mock data
+├── server.ts
+└── server.test.ts            # Server handler tests
+```
+
+### Testing Tools
+
+| Tool | Purpose | Location |
+|------|---------|----------|
+| Vitest | Test runner | All packages |
+| Testing Library | React component testing | `apps/web` |
+| happy-dom | DOM environment for tests | `apps/web` |
+| GameSimulator | Full game simulation | `apps/web/src/test/` |
+| MSW | API mocking (optional) | `apps/web` |
+
+### When to Write Which Test Type
+
+| Scenario | Test Type | Example |
+|----------|-----------|---------|
+| Logic without UI | Unit test | API client methods |
+| React hooks | Hook test | `useGameMutations` |
+| UI components | Component test | `HomePage`, `RoomLobby` |
+| Multi-player game flow | Simulation test | `GameSimulator` |
+| Real browser + server | E2E test | Playwright (when added) |
+
+### GameSimulator Usage
+
+For testing complete game flows without a real server:
+
+```typescript
+import { GameSimulator, createGameWithPlayers } from './GameSimulator';
+
+// Create a 4-player game
+const sim = createGameWithPlayers(4);
+sim.startGame();
+
+// Simulate item submission
+sim.submitItem('host-player', 'Pizza');
+
+// Verify state
+sim.assertStatus('in-progress');
+sim.assertItemCount(1);
+```
+
+---
+
+## E2E Testing (Planned)
+
+For true end-to-end tests with real browser and server:
+
+### Recommended: Playwright
+
+```bash
+# Install (when ready)
+pnpm add -D @playwright/test --prefix apps/web
+npx playwright install
+```
+
+**E2E Test Scenarios:**
+1. Single player creates room, plays full game
+2. Two players in different browser contexts join same room
+3. Host starts game, all players see real-time updates
+4. Player disconnects and reconnects mid-game
+5. Complete 10-item game and verify reveal screen
+
+### E2E Test Commands (Future)
+
+```bash
+pnpm e2e --prefix apps/web      # Run E2E tests
+pnpm e2e:ui --prefix apps/web   # Run with Playwright UI
+```
+
+---
+
+## Monorepo Commands Reference
+
+```bash
+# From root directory
+pnpm dev                       # Start all dev servers
+pnpm build                     # Build all packages
+pnpm test                      # Run all tests
+pnpm test --prefix apps/web    # Run web tests only (76 tests)
+pnpm test --prefix apps/api    # Run api tests only (21 tests)
+pnpm tsc --noEmit -p apps/web  # TypeScript check
+```
+
+---
+
+## Deployment
+
+### Deploy Commands
+
+```bash
+# Deploy everything (API + Web)
+npm run deploy
+
+# Deploy only API (PartyKit)
+npm run deploy:api
+
+# Deploy only Web (Cloudflare Pages)
+npm run deploy:web
+```
+
+### Production URLs
+
+- **Web**: https://rank-everything.pages.dev
+- **API**: https://rank-everything.lassenordahl.partykit.dev
+
+### Production E2E Tests
+
+```bash
+# Run smoke tests against production
+BASE_URL=https://rank-everything.pages.dev pnpm e2e:prod --prefix apps/web
+
+# With visible browser
+BASE_URL=https://rank-everything.pages.dev pnpm e2e:prod:headed --prefix apps/web
+```
+
+---
+
+## Error Recovery
 
 If you introduce a bug:
 1. Immediately check the error message and stack trace
 2. View the relevant file at the line number mentioned
 3. Fix the issue before proceeding with other work
 4. Run tests again to verify the fix
-
-### Monorepo Commands Reference
-
-```bash
-# From root directory
-pnpm dev                    # Start all dev servers
-pnpm build                  # Build all packages
-pnpm test                   # Run all tests
-pnpm test --prefix apps/web # Run web tests only
-pnpm tsc --noEmit -p apps/web  # TypeScript check
-```
-
+5. If tests fail, prioritize fixing them before new features
