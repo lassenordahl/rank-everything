@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { usePartySocket } from '../hooks/usePartySocket';
 import type { Room, Item } from '@rank-everything/shared-types';
 import RevealScreen from './RevealScreen';
@@ -7,7 +7,6 @@ import RandomRollModal from './RandomRollModal';
 
 export default function GameView() {
   const { code } = useParams<{ code: string }>();
-  const location = useLocation();
   const [room, setRoom] = useState<Room | null>(null);
   const [inputText, setInputText] = useState('');
   const [currentItem, setCurrentItem] = useState<Item | null>(null);

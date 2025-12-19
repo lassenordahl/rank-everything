@@ -9,7 +9,7 @@ export default function RoomLobby() {
   const [room, setRoom] = useState<Room | null>(null);
   const playerId = localStorage.getItem('playerId');
 
-  const { sendMessage, lastMessage } = usePartySocket(code || '');
+  const { lastMessage } = usePartySocket(code || '');
 
   useEffect(() => {
     if (lastMessage) {

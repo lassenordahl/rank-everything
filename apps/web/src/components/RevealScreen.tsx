@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import type { Room, Player } from '@rank-everything/shared-types';
 
 interface RevealScreenProps {
@@ -22,7 +22,7 @@ export default function RevealScreen({ room, playerId }: RevealScreenProps) {
 
     for (let i = 1; i <= 10; i++) {
       const itemId = Object.entries(player.rankings).find(([, rank]) => rank === i)?.[0];
-      const item = itemId ? room.items.find(it => it.id === itemId) : null;
+      const item = itemId ? room.items.find(it => it.id === itemId) ?? null : null;
       rankings.push({ rank: i, item });
     }
 
