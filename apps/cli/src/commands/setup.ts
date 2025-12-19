@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import ora from 'ora';
-import { execSync, spawn } from 'child_process';
+import { execSync } from 'child_process';
 import { existsSync, copyFileSync } from 'fs';
 import { resolve } from 'path';
 
@@ -30,7 +30,7 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
     execSync('node --version', { stdio: 'pipe' });
     execSync('pnpm --version', { stdio: 'pipe' });
     prereqSpinner.succeed('Prerequisites met (Node.js, pnpm)');
-  } catch (error) {
+  } catch {
     prereqSpinner.fail('Missing prerequisites');
     console.log(chalk.red('\nPlease install:'));
     console.log('  - Node.js >= 18: https://nodejs.org');
@@ -43,7 +43,7 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
   try {
     execSync('pnpm install', { cwd: rootDir, stdio: 'pipe' });
     depsSpinner.succeed('Dependencies installed');
-  } catch (error) {
+  } catch {
     depsSpinner.fail('Failed to install dependencies');
     console.error(error);
     process.exit(1);
@@ -80,7 +80,7 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
   try {
     // This will be implemented when we have wrangler setup
     dbSpinner.succeed('Database ready (using local D1)');
-  } catch (error) {
+  } catch {
     dbSpinner.warn('Database setup skipped (wrangler not configured)');
   }
 

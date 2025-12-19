@@ -5,7 +5,8 @@
  * These tests create resources but clean up after themselves.
  */
 
-import { test, expect, BrowserContext, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { COPY } from '../src/lib/copy';
 
 // Helper to setup logging
@@ -142,7 +143,7 @@ test.describe('Production Smoke Tests', () => {
         await hostPage.getByRole('button', { name: COPY.buttons.create }).click();
 
         await hostPage.waitForURL(/\/[A-Z]{4}$/, { timeout: 15000 });
-        const roomCode = hostPage.url().split('/').pop()!;
+        const roomCode = hostPage.url().split('/').pop() || '';
         console.log(`Room created: ${roomCode}`);
 
         // GUEST: Join room via homepage
@@ -187,7 +188,7 @@ test.describe('Production Smoke Tests', () => {
         await pageA.getByPlaceholder(COPY.placeholders.nickname).fill('HostA');
         await pageA.getByRole('button', { name: COPY.buttons.create }).click();
         await pageA.waitForURL(/\/[A-Z]{4}$/);
-        const codeA = pageA.url().split('/').pop()!;
+        const codeA = pageA.url().split('/').pop() || '';
         await expect(pageA.getByText(new RegExp(`${COPY.labels.players}.*1`, 'i'))).toBeVisible();
         console.log(`Room A created: ${codeA}`);
 
@@ -197,7 +198,7 @@ test.describe('Production Smoke Tests', () => {
         await pageB.getByPlaceholder(COPY.placeholders.nickname).fill('HostB');
         await pageB.getByRole('button', { name: COPY.buttons.create }).click();
         await pageB.waitForURL(/\/[A-Z]{4}$/);
-        const codeB = pageB.url().split('/').pop()!;
+        const codeB = pageB.url().split('/').pop() || '';
         await expect(pageB.getByText(new RegExp(`${COPY.labels.players}.*1`, 'i'))).toBeVisible();
         console.log(`Room B created: ${codeB}`);
 
@@ -250,7 +251,7 @@ test.describe('Production Smoke Tests', () => {
         await hostPage.getByPlaceholder(COPY.placeholders.nickname).fill('OriginalHost');
         await hostPage.getByRole('button', { name: COPY.buttons.create }).click();
         await hostPage.waitForURL(/\/[A-Z]{4}$/);
-        const roomCode = hostPage.url().split('/').pop()!;
+        const roomCode = hostPage.url().split('/').pop() || '';
         await expect(
           hostPage.getByText(new RegExp(`${COPY.labels.players}.*1`, 'i'))
         ).toBeVisible();
@@ -300,7 +301,7 @@ test.describe('Game Turn-Taking', () => {
       await hostPage.getByPlaceholder(COPY.placeholders.nickname).fill('TurnHost');
       await hostPage.getByRole('button', { name: COPY.buttons.create }).click();
       await hostPage.waitForURL(/\/[A-Z]{4}$/);
-      const roomCode = hostPage.url().split('/').pop()!;
+      const roomCode = hostPage.url().split('/').pop() || '';
       console.log(`Room created: ${roomCode}`);
 
       // GUEST: Join room

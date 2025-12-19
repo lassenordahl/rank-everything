@@ -5,7 +5,7 @@
  * Tests complex scenarios including player disconnect/reconnect.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { GameSimulator, runFullGame, createGameWithPlayers } from './GameSimulator';
 
 describe('Full Game Simulations', () => {
@@ -21,8 +21,16 @@ describe('Full Game Simulations', () => {
 
       // Play 10 rounds - solo player submits all items
       const items = [
-        'Pizza', 'Coffee', 'Sleeping', 'Mondays', 'Friday',
-        'Beach', 'Snow', 'Chocolate', 'Exercise', 'Netflix'
+        'Pizza',
+        'Coffee',
+        'Sleeping',
+        'Mondays',
+        'Friday',
+        'Beach',
+        'Snow',
+        'Chocolate',
+        'Exercise',
+        'Netflix',
       ];
 
       for (let i = 0; i < 10; i++) {
@@ -32,7 +40,9 @@ describe('Full Game Simulations', () => {
         expect(result.success).toBe(true);
 
         // Solo player ranks each item
-        sim.rankItem('host-player', result.itemId!, i + 1);
+        if (result.itemId) {
+          sim.rankItem('host-player', result.itemId, i + 1);
+        }
       }
 
       // Verify end state
@@ -42,7 +52,7 @@ describe('Full Game Simulations', () => {
       sim.assertNoErrors();
 
       const result = sim.getResult();
-      expect(result.events.some(e => e.type === 'game_ended')).toBe(true);
+      expect(result.events.some((e) => e.type === 'game_ended')).toBe(true);
     });
   });
 
@@ -53,8 +63,16 @@ describe('Full Game Simulations', () => {
       sim.startGame();
 
       const items = [
-        'Pizza', 'Tacos', 'Burgers', 'Sushi', 'Pasta',
-        'Salad', 'Steak', 'Curry', 'Ramen', 'Wings'
+        'Pizza',
+        'Tacos',
+        'Burgers',
+        'Sushi',
+        'Pasta',
+        'Salad',
+        'Steak',
+        'Curry',
+        'Ramen',
+        'Wings',
       ];
 
       for (let i = 0; i < 10; i++) {
@@ -65,8 +83,10 @@ describe('Full Game Simulations', () => {
         expect(result.success).toBe(true);
 
         // Both players rank
-        sim.rankItem('host-player', result.itemId!, i + 1);
-        sim.rankItem('player-1', result.itemId!, 10 - i);
+        if (result.itemId) {
+          sim.rankItem('host-player', result.itemId, i + 1);
+          sim.rankItem('player-1', result.itemId, 10 - i);
+        }
       }
 
       sim.assertStatus('ended');
@@ -93,12 +113,21 @@ describe('Full Game Simulations', () => {
       sim.startGame();
 
       const items = [
-        'Item1', 'Item2', 'Item3', 'Item4', 'Item5',
-        'Item6', 'Item7', 'Item8', 'Item9', 'Item10'
+        'Item1',
+        'Item2',
+        'Item3',
+        'Item4',
+        'Item5',
+        'Item6',
+        'Item7',
+        'Item8',
+        'Item9',
+        'Item10',
       ];
 
       for (let i = 0; i < 10; i++) {
-        const player = sim.getCurrentTurnPlayer()!;
+        const player = sim.getCurrentTurnPlayer();
+        if (!player) break;
         const result = sim.submitItem(player.id, items[i]);
         expect(result.success).toBe(true);
 
@@ -107,8 +136,8 @@ describe('Full Game Simulations', () => {
         room.players.forEach((p, pIdx) => {
           const ranking = ((i + pIdx) % 10) + 1;
           const existingRankings = Object.values(p.rankings);
-          if (!existingRankings.includes(ranking)) {
-            sim.rankItem(p.id, result.itemId!, ranking);
+          if (!existingRankings.includes(ranking) && result.itemId) {
+            sim.rankItem(p.id, result.itemId, ranking);
           }
         });
       }
@@ -118,8 +147,8 @@ describe('Full Game Simulations', () => {
       expect(room.players.length).toBe(4);
 
       // Verify turn distribution (round-robin with 4 players)
-      const submissions = room.items.map(item => item.submittedByPlayerId);
-      expect(submissions.filter(id => id === 'host-player').length).toBeGreaterThanOrEqual(2);
+      const submissions = room.items.map((item) => item.submittedByPlayerId);
+      expect(submissions.filter((id) => id === 'host-player').length).toBeGreaterThanOrEqual(2);
     });
 
     it('should verify each player gets at least 2 turns in 10 rounds', () => {
@@ -129,14 +158,15 @@ describe('Full Game Simulations', () => {
       const turnCount: Record<string, number> = {};
 
       for (let i = 0; i < 10; i++) {
-        const player = sim.getCurrentTurnPlayer()!;
+        const player = sim.getCurrentTurnPlayer();
+        if (!player) break;
         turnCount[player.id] = (turnCount[player.id] || 0) + 1;
 
         sim.submitItem(player.id, `Item ${i + 1}`);
       }
 
       // Each player should get at least 2 turns (10 rounds / 4 players = 2.5)
-      Object.values(turnCount).forEach(count => {
+      Object.values(turnCount).forEach((count) => {
         expect(count).toBeGreaterThanOrEqual(2);
       });
     });
@@ -153,7 +183,8 @@ describe('Full Game Simulations', () => {
       sim.startGame();
 
       for (let i = 0; i < 10; i++) {
-        const player = sim.getCurrentTurnPlayer()!;
+        const player = sim.getCurrentTurnPlayer();
+        if (!player) break;
         const result = sim.submitItem(player.id, `Item ${i + 1}`);
         expect(result.success).toBe(true);
       }
@@ -172,7 +203,8 @@ describe('Full Game Simulations', () => {
       const submitters: string[] = [];
 
       for (let i = 0; i < 10; i++) {
-        const player = sim.getCurrentTurnPlayer()!;
+        const player = sim.getCurrentTurnPlayer();
+        if (!player) break;
         submitters.push(player.nickname);
         sim.submitItem(player.id, `Item ${i + 1}`);
       }
@@ -181,7 +213,7 @@ describe('Full Game Simulations', () => {
       // - Players 1-2 get 2 turns each
       // - Players 3-8 get 1 turn each
       const turnCounts: Record<string, number> = {};
-      submitters.forEach(name => {
+      submitters.forEach((name) => {
         turnCounts[name] = (turnCounts[name] || 0) + 1;
       });
 
@@ -210,7 +242,7 @@ describe('Full Game Simulations', () => {
 
       // All items should be from host
       const room = sim.getRoom();
-      room.items.forEach(item => {
+      room.items.forEach((item) => {
         expect(item.submittedByPlayerId).toBe('host-player');
       });
     });
@@ -242,8 +274,10 @@ describe('Full Game Simulations', () => {
 
       // Submit and rank an item
       const result = sim.submitItem('host-player', 'Pizza');
-      sim.rankItem('host-player', result.itemId!, 1);
-      sim.rankItem('player-1', result.itemId!, 5);
+      if (result.itemId) {
+        sim.rankItem('host-player', result.itemId, 1);
+        sim.rankItem('player-1', result.itemId, 5);
+      }
 
       // Player 1 disconnects
       sim.disconnectPlayer('player-1');
@@ -251,7 +285,9 @@ describe('Full Game Simulations', () => {
       // Verify player still exists with rankings
       let player = sim.getPlayer('player-1');
       expect(player?.connected).toBe(false);
-      expect(player?.rankings[result.itemId!]).toBe(5);
+      if (player && result.itemId) {
+        expect(player.rankings[result.itemId]).toBe(5);
+      }
 
       // Player reconnects
       sim.reconnectPlayer('player-1');
@@ -259,7 +295,9 @@ describe('Full Game Simulations', () => {
       // Rankings should be preserved
       player = sim.getPlayer('player-1');
       expect(player?.connected).toBe(true);
-      expect(player?.rankings[result.itemId!]).toBe(5);
+      if (player && result.itemId) {
+        expect(player.rankings[result.itemId]).toBe(5);
+      }
     });
 
     it('should transfer host when host leaves', () => {
@@ -274,7 +312,7 @@ describe('Full Game Simulations', () => {
       // New host should be assigned
       const newHost = sim.getRoom().hostPlayerId;
       expect(newHost).not.toBe('host-player');
-      expect(sim.getRoom().players.find(p => p.id === newHost)).toBeDefined();
+      expect(sim.getRoom().players.find((p) => p.id === newHost)).toBeDefined();
     });
 
     it('should handle all players disconnecting except one', () => {
@@ -291,7 +329,7 @@ describe('Full Game Simulations', () => {
 
       // Only player-2 is connected
       const room = sim.getRoom();
-      const connectedPlayers = room.players.filter(p => p.connected);
+      const connectedPlayers = room.players.filter((p) => p.connected);
       expect(connectedPlayers.length).toBe(1);
       expect(connectedPlayers[0].id).toBe('player-2');
     });
@@ -336,13 +374,20 @@ describe('Full Game Simulations', () => {
       sim.startGame();
 
       const result1 = sim.submitItem('host-player', 'Item 1');
-      sim.rankItem('host-player', result1.itemId!, 1);
+      if (result1.itemId) {
+        sim.rankItem('host-player', result1.itemId, 1);
+      }
 
       const result2 = sim.submitItem('player-1', 'Item 2');
-      const rankResult = sim.rankItem('host-player', result2.itemId!, 1);
+      let rankResult;
+      if (result2.itemId) {
+        rankResult = sim.rankItem('host-player', result2.itemId, 1);
+      }
 
-      expect(rankResult.success).toBe(false);
-      expect(rankResult.error).toContain('slot 1 already used');
+      if (rankResult) {
+        expect(rankResult.success).toBe(false);
+        expect(rankResult.error).toContain('slot 1 already used');
+      }
     });
 
     it('should reject re-ranking an item', () => {
@@ -350,11 +395,13 @@ describe('Full Game Simulations', () => {
       sim.startGame();
 
       const result = sim.submitItem('host-player', 'Pizza');
-      sim.rankItem('host-player', result.itemId!, 1);
+      if (result.itemId) {
+        sim.rankItem('host-player', result.itemId, 1);
 
-      const rerank = sim.rankItem('host-player', result.itemId!, 2);
-      expect(rerank.success).toBe(false);
-      expect(rerank.error).toContain('already ranked');
+        const rerank = sim.rankItem('host-player', result.itemId, 2);
+        expect(rerank.success).toBe(false);
+        expect(rerank.error).toContain('already ranked');
+      }
     });
 
     it('should reject joining mid-game', () => {
@@ -372,8 +419,10 @@ describe('Full Game Simulations', () => {
 
       const result = sim.submitItem('host-player', 'Pizza');
 
-      expect(sim.rankItem('host-player', result.itemId!, 0).success).toBe(false);
-      expect(sim.rankItem('host-player', result.itemId!, 11).success).toBe(false);
+      if (result.itemId) {
+        expect(sim.rankItem('host-player', result.itemId, 0).success).toBe(false);
+        expect(sim.rankItem('host-player', result.itemId, 11).success).toBe(false);
+      }
     });
   });
 
@@ -387,7 +436,7 @@ describe('Full Game Simulations', () => {
       expect(result.errors.length).toBe(0);
 
       // Verify game lifecycle events occurred
-      const eventTypes = result.events.map(e => e.type);
+      const eventTypes = result.events.map((e) => e.type);
       expect(eventTypes).toContain('room_created');
       expect(eventTypes).toContain('player_joined');
       expect(eventTypes).toContain('game_started');
@@ -408,7 +457,8 @@ describe('Full Game Simulations', () => {
       sim.startGame();
 
       for (let i = 0; i < 10; i++) {
-        const player = sim.getCurrentTurnPlayer()!;
+        const player = sim.getCurrentTurnPlayer();
+        if (!player) break;
         sim.submitItem(player.id, `Item ${i + 1}`);
       }
 
@@ -416,7 +466,7 @@ describe('Full Game Simulations', () => {
 
       // Count event types
       const eventCounts: Record<string, number> = {};
-      result.events.forEach(e => {
+      result.events.forEach((e) => {
         eventCounts[e.type] = (eventCounts[e.type] || 0) + 1;
       });
 

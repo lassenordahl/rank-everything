@@ -90,6 +90,7 @@ export function createMockRoomConfig(overrides: Partial<RoomConfig> = {}): RoomC
     submissionMode: 'round-robin',
     timerEnabled: true,
     timerDuration: 60,
+    rankingTimeout: 15,
     ...overrides,
   };
 }
@@ -112,6 +113,7 @@ export function createMockRoom(overrides: Partial<Room> = {}): Room {
     currentTurnPlayerId: null,
     currentTurnIndex: 0,
     timerEndAt: null,
+    rankingTimerEndAt: null,
     createdAt: now,
     lastActivityAt: now,
     ...overrides,
@@ -269,9 +271,15 @@ export function mockLocalStorage(data: Record<string, string> = {}) {
 
   return {
     getItem: vi.fn((key: string) => store[key] || null),
-    setItem: vi.fn((key: string, value: string) => { store[key] = value; }),
-    removeItem: vi.fn((key: string) => { delete store[key]; }),
-    clear: vi.fn(() => { Object.keys(store).forEach(k => delete store[k]); }),
+    setItem: vi.fn((key: string, value: string) => {
+      store[key] = value;
+    }),
+    removeItem: vi.fn((key: string) => {
+      delete store[key];
+    }),
+    clear: vi.fn(() => {
+      Object.keys(store).forEach((k) => delete store[k]);
+    }),
     store,
   };
 }

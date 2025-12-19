@@ -18,11 +18,11 @@ export default function RevealScreen({ room, playerId }: RevealScreenProps) {
 
   // Get sorted rankings for a player
   const getPlayerRankings = (player: Player) => {
-    const rankings: Array<{ rank: number; item: typeof room.items[0] | null }> = [];
+    const rankings: Array<{ rank: number; item: (typeof room.items)[0] | null }> = [];
 
     for (let i = 1; i <= 10; i++) {
       const itemId = Object.entries(player.rankings).find(([, rank]) => rank === i)?.[0];
-      const item = itemId ? room.items.find(it => it.id === itemId) ?? null : null;
+      const item = itemId ? (room.items.find((it) => it.id === itemId) ?? null) : null;
       rankings.push({ rank: i, item });
     }
 
@@ -54,7 +54,7 @@ export default function RevealScreen({ room, playerId }: RevealScreenProps) {
         a.click();
         URL.revokeObjectURL(url);
       });
-    } catch (error) {
+    } catch {
       // Fallback: copy text version to clipboard
       const text = rankings
         .map(({ rank, item }) => `${rank}. ${item?.emoji || ''} ${item?.text || '—'}`)
@@ -130,9 +130,7 @@ export default function RevealScreen({ room, playerId }: RevealScreenProps) {
           {rankings.map(({ rank, item }) => (
             <div
               key={rank}
-              className={`flex items-center gap-3 p-2 ${
-                rank === 1 ? 'bg-gray-100' : ''
-              }`}
+              className={`flex items-center gap-3 p-2 ${rank === 1 ? 'bg-gray-100' : ''}`}
             >
               <span className="w-8 text-xl font-bold text-right">{rank}.</span>
               {item ? (

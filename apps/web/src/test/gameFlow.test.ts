@@ -4,7 +4,7 @@
  * Tests complete game flows from start to end based on PROJECT_SPEC.md workflows.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import {
   createMockRoom,
   createMockPlayer,
@@ -21,8 +21,7 @@ describe('Game Flow Integration', () => {
     it('Step 1-4: Create room and configure settings', () => {
       // 1. Land on homepage - frontend handles
       // 2. Click "Create Room" - frontend handles
-      // 3. Enter nickname
-      const nickname = 'Host';
+      // 3. Enter nickname (used to identify host)
 
       // 4. Configure room settings
       const room = createMockRoom({
@@ -30,6 +29,7 @@ describe('Game Flow Integration', () => {
           submissionMode: 'round-robin',
           timerEnabled: true,
           timerDuration: 60,
+          rankingTimeout: 15,
         },
       });
 
@@ -53,7 +53,7 @@ describe('Game Flow Integration', () => {
       room.players.push(friend2);
 
       expect(room.players.length).toBe(3);
-      expect(room.players.map(p => p.nickname)).toEqual(['Host', 'Friend1', 'Friend2']);
+      expect(room.players.map((p) => p.nickname)).toEqual(['Host', 'Friend1', 'Friend2']);
     });
 
     it('Step 8-9: Game begins with turn-based submission + ranking', () => {
@@ -83,7 +83,7 @@ describe('Game Flow Integration', () => {
       expect(room.items.length).toBe(10);
 
       // All players should have rankings
-      room.players.forEach(player => {
+      room.players.forEach((player) => {
         expect(Object.keys(player.rankings).length).toBe(10);
       });
     });
@@ -93,7 +93,7 @@ describe('Game Flow Integration', () => {
       const room = createMockEndedRoom();
 
       // Each player should have unique rankings
-      room.players.forEach(player => {
+      room.players.forEach((player) => {
         const rankings = Object.values(player.rankings);
         expect(rankings.length).toBe(10);
       });
@@ -115,9 +115,16 @@ describe('Game Flow Integration', () => {
 
       // Simulate 10 rounds of submissions
       const items = [
-        'Pizza', 'Coffee', 'Sleeping in', 'Mondays',
-        'Free samples', 'Traffic', 'Beach', 'Snow',
-        'Chocolate', 'Exercise'
+        'Pizza',
+        'Coffee',
+        'Sleeping in',
+        'Mondays',
+        'Free samples',
+        'Traffic',
+        'Beach',
+        'Snow',
+        'Chocolate',
+        'Exercise',
       ];
 
       items.forEach((text, i) => {
@@ -125,12 +132,12 @@ describe('Game Flow Integration', () => {
         const item = createMockItem({
           id: `item-${i}`,
           text,
-          submittedByPlayerId: room.currentTurnPlayerId!,
+          submittedByPlayerId: room.currentTurnPlayerId || '',
         });
         room.items.push(item);
 
         // All players rank the item
-        room.players.forEach((player, pIdx) => {
+        room.players.forEach((player, _pIdx) => {
           const availableRank = i + 1; // Simple sequential ranking
           player.rankings[item.id] = availableRank;
         });
@@ -147,7 +154,7 @@ describe('Game Flow Integration', () => {
       expect(room.items.length).toBe(10);
       expect(room.status).toBe('ended');
 
-      room.players.forEach(player => {
+      room.players.forEach((player) => {
         expect(Object.keys(player.rankings).length).toBe(10);
       });
     });
@@ -158,6 +165,7 @@ describe('Game Flow Integration', () => {
           submissionMode: 'host-only',
           timerEnabled: false,
           timerDuration: 0,
+          rankingTimeout: 0,
         },
       });
       room.players.push(createMockPlayer({ id: 'player-2' }));
@@ -181,7 +189,7 @@ describe('Game Flow Integration', () => {
       }
 
       expect(room.items.length).toBe(10);
-      expect(room.items.every(item => item.submittedByPlayerId === room.hostPlayerId)).toBe(true);
+      expect(room.items.every((item) => item.submittedByPlayerId === room.hostPlayerId)).toBe(true);
     });
   });
 
@@ -222,7 +230,7 @@ describe('Game Flow Integration', () => {
       room.items[0].text = 'Pizza';
 
       const isDuplicate = (text: string) =>
-        room.items.some(item => item.text.toLowerCase() === text.toLowerCase());
+        room.items.some((item) => item.text.toLowerCase() === text.toLowerCase());
 
       expect(isDuplicate('Pizza')).toBe(true);
       expect(isDuplicate('pizza')).toBe(true); // Case insensitive
@@ -234,7 +242,7 @@ describe('Game Flow Integration', () => {
       room.items.push(createMockItem({ text: '1 orange' }));
 
       const isDuplicate = (text: string) =>
-        room.items.some(item => item.text.toLowerCase() === text.toLowerCase());
+        room.items.some((item) => item.text.toLowerCase() === text.toLowerCase());
 
       expect(isDuplicate('1 orange')).toBe(true);
       expect(isDuplicate('2 oranges')).toBe(false); // Similar but allowed

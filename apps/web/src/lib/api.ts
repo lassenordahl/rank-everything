@@ -8,8 +8,11 @@ export class ApiClient {
 
   static async createRoom(nickname: string): Promise<{ roomCode: string; playerId: string }> {
     // Generate random 4-letter code
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-    const code = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const code = Array.from(
+      { length: 4 },
+      () => chars[Math.floor(Math.random() * chars.length)]
+    ).join('');
 
     const response = await fetch(`${this.baseUrl}/party/${code}`, {
       method: 'POST',

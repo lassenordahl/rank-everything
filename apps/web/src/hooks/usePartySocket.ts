@@ -13,12 +13,14 @@ export function usePartySocket(roomCode: string) {
   useEffect(() => {
     if (!lastMessage) return;
     try {
-        const event = JSON.parse(lastMessage);
-        if (event.type === 'game_started') {
-            const code = window.location.pathname.split('/').pop();
-            console.log(`[useGameRoom] Game started event received for room ${code}`);
-        }
-    } catch(e) {}
+      const event = JSON.parse(lastMessage);
+      if (event.type === 'game_started') {
+        const code = window.location.pathname.split('/').pop();
+        console.log(`[useGameRoom] Game started event received for room ${code}`);
+      }
+    } catch {
+      // Ignore parsing errors from messages that aren't JSON
+    }
   }, [lastMessage]);
 
   return { sendMessage, lastMessage, isConnected };

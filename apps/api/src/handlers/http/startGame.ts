@@ -1,5 +1,5 @@
-import { GameRoomState } from '../../state/GameRoomState';
-import { ServerEvent } from '@rank-everything/shared-types';
+import type { GameRoomState } from '../../state/GameRoomState';
+import type { ServerEvent } from '@rank-everything/shared-types';
 
 export async function handleStartGame(
   req: Request,
@@ -21,11 +21,12 @@ export async function handleStartGame(
     });
   }
 
-  if (state.room.players.length < 1) { // Changed to 1 for testing support
-     return new Response(JSON.stringify({ error: 'Not enough players' }), {
-       status: 400,
-       headers: { 'Content-Type': 'application/json', ...corsHeaders },
-     });
+  if (state.room.players.length < 1) {
+    // Changed to 1 for testing support
+    return new Response(JSON.stringify({ error: 'Not enough players' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
   }
 
   state.startGame();
@@ -34,9 +35,12 @@ export async function handleStartGame(
   broadcast({ type: 'game_started' });
   broadcast({ type: 'room_updated', room: state.room });
 
-  return new Response(JSON.stringify({
-    room: state.room,
-  }), {
-    headers: { 'Content-Type': 'application/json', ...corsHeaders },
-  });
+  return new Response(
+    JSON.stringify({
+      room: state.room,
+    }),
+    {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    }
+  );
 }

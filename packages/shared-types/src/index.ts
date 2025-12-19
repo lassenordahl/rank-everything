@@ -5,7 +5,8 @@ export type SubmissionMode = 'round-robin' | 'host-only';
 export interface RoomConfig {
   submissionMode: SubmissionMode;
   timerEnabled: boolean;
-  timerDuration: number; // seconds
+  timerDuration: number; // seconds - for turn/submission timer
+  rankingTimeout: number; // seconds - how long players have to rank each item (0 = disabled)
 }
 
 export interface Room {
@@ -18,6 +19,7 @@ export interface Room {
   currentTurnPlayerId: string | null;
   currentTurnIndex: number;
   timerEndAt: number | null;
+  rankingTimerEndAt: number | null; // When current item ranking is due
   createdAt: number;
   lastActivityAt: number;
 }

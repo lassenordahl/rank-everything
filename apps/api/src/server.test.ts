@@ -4,7 +4,7 @@
  * Tests the core logic of the PartyKit server without the runtime.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   createMockRoom,
   createMockPlayer,
@@ -102,7 +102,7 @@ describe('Game Room Handler Logic', () => {
 
       room.items.push(item1);
 
-      const isDuplicate = room.items.some(i => i.text.toLowerCase() === 'pizza');
+      const isDuplicate = room.items.some((i) => i.text.toLowerCase() === 'pizza');
       expect(isDuplicate).toBe(true);
     });
 
@@ -205,7 +205,7 @@ describe('Game Room Handler Logic', () => {
       room.status = 'ended';
 
       // Verify all rankings preserved
-      room.players.forEach(player => {
+      room.players.forEach((player) => {
         expect(Object.keys(player.rankings).length).toBe(10);
       });
     });
@@ -260,6 +260,103 @@ describe('Game Room Handler Logic', () => {
       player.connected = true;
 
       expect(player.rankings['item-1']).toBe(5);
+    });
+  });
+});
+
+/**
+ * Tests for emoji validation - ensures only valid unicode emojis are saved to DB
+ */
+describe('Emoji Validation', () => {
+  // Import the function to test
+  let isValidEmoji: (str: string) => boolean;
+
+  beforeEach(async () => {
+    const module = await import('./handlers/ws/submitItem');
+    isValidEmoji = module.isValidEmoji;
+  });
+
+  describe('Valid Emojis', () => {
+    const validEmojis = [
+      // Common emojis
+      { emoji: '🍊', description: 'orange fruit' },
+      { emoji: '🍕', description: 'pizza' },
+      { emoji: '🐶', description: 'dog' },
+      { emoji: '😀', description: 'grinning face' },
+      { emoji: '❤️', description: 'red heart with variation selector' },
+      { emoji: '🚀', description: 'rocket' },
+      { emoji: '⭐', description: 'star' },
+      { emoji: '☀️', description: 'sun' },
+      { emoji: '🎉', description: 'party popper' },
+      { emoji: '💯', description: 'hundred points' },
+      // Symbol emojis
+      { emoji: '⚡', description: 'lightning' },
+      { emoji: '☕', description: 'coffee' },
+      { emoji: '⚽', description: 'soccer ball' },
+      // Flag emojis (multi-codepoint)
+      { emoji: '🇺🇸', description: 'US flag' },
+      // Misc symbols
+      { emoji: '©', description: 'copyright' },
+      { emoji: '®', description: 'registered' },
+    ];
+
+    it.each(validEmojis)('should accept $description ($emoji)', ({ emoji }) => {
+      expect(isValidEmoji(emoji)).toBe(true);
+    });
+  });
+
+  describe('Invalid Inputs - Should Reject', () => {
+    const invalidInputs = [
+      { input: '', description: 'empty string' },
+      { input: 'hello', description: 'plain text' },
+      { input: '123', description: 'numbers' },
+      { input: 'abc🍊', description: 'text with emoji' },
+      { input: '🍊abc', description: 'emoji with text' },
+      { input: '<script>', description: 'HTML tag' },
+      { input: 'javascript:alert(1)', description: 'javascript injection' },
+      { input: '   ', description: 'whitespace' },
+      { input: '\n', description: 'newline' },
+      { input: '🍊🍕🐶🚀🎉💯⭐☀️☕', description: 'too many emojis (length check)' },
+    ];
+
+    it.each(invalidInputs)('should reject $description', ({ input }) => {
+      expect(isValidEmoji(input)).toBe(false);
+    });
+  });
+
+  describe('Edge Cases', () => {
+    it('should reject null/undefined', () => {
+      expect(isValidEmoji(null as unknown as string)).toBe(false);
+      expect(isValidEmoji(undefined as unknown as string)).toBe(false);
+    });
+
+    it('should accept single emoji', () => {
+      expect(isValidEmoji('🍊')).toBe(true);
+    });
+
+    it('should accept emoji with variation selector', () => {
+      // Heart with variation selector (rendered as red heart)
+      expect(isValidEmoji('❤️')).toBe(true);
+    });
+
+    it('should reject very long strings even if they contain emojis', () => {
+      const longEmoji = '🍊'.repeat(10);
+      expect(isValidEmoji(longEmoji)).toBe(false);
+    });
+  });
+
+  describe('Security - Prevent Injection', () => {
+    const injectionAttempts = [
+      '<img src=x onerror=alert(1)>',
+      '"><script>alert(1)</script>',
+      "'); DROP TABLE items; --",
+      '${7*7}',
+      '{{constructor.constructor("alert(1)")()}}',
+      '%3Cscript%3Ealert(1)%3C/script%3E',
+    ];
+
+    it.each(injectionAttempts)('should reject injection attempt: %s', (input) => {
+      expect(isValidEmoji(input)).toBe(false);
     });
   });
 });

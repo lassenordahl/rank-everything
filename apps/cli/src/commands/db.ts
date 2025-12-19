@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import ora from 'ora';
-import { execSync, spawnSync } from 'child_process';
+import { spawnSync } from 'child_process';
 import { resolve, dirname } from 'path';
 import { existsSync, readdirSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -43,7 +43,11 @@ function getPaths() {
 }
 
 // Run wrangler command
-function runWrangler(args: string[], cwd: string, silent = false): { success: boolean; output: string } {
+function runWrangler(
+  args: string[],
+  cwd: string,
+  silent = false
+): { success: boolean; output: string } {
   try {
     const result = spawnSync('npx', ['wrangler', ...args], {
       cwd,
@@ -69,7 +73,14 @@ export const dbCommands = {
 
       // List tables to show what exists
       const result = runWrangler(
-        ['d1', 'execute', 'rank-everything-db', target, '--command', "SELECT name FROM sqlite_master WHERE type='table'"],
+        [
+          'd1',
+          'execute',
+          'rank-everything-db',
+          target,
+          '--command',
+          "SELECT name FROM sqlite_master WHERE type='table'",
+        ],
         apiDir,
         true
       );
@@ -93,7 +104,7 @@ export const dbCommands = {
 
     // Get migration files
     const migrationFiles = readdirSync(migrationsDir)
-      .filter(f => f.endsWith('.sql'))
+      .filter((f) => f.endsWith('.sql'))
       .sort();
 
     if (migrationFiles.length === 0) {
@@ -101,7 +112,11 @@ export const dbCommands = {
       return;
     }
 
-    console.log(chalk.cyan(`Running ${migrationFiles.length} migrations (${isLocal ? 'local' : 'remote'})...\n`));
+    console.log(
+      chalk.cyan(
+        `Running ${migrationFiles.length} migrations (${isLocal ? 'local' : 'remote'})...\n`
+      )
+    );
 
     for (const file of migrationFiles) {
       const spinner = ora(`Running ${file}...`).start();
@@ -161,7 +176,7 @@ export const dbCommands = {
   async reset(options: ResetOptions): Promise<void> {
     console.log(chalk.bold('\n🗑️  Resetting Database\n'));
 
-    const { apiDir, migrationsDir } = getPaths();
+    const { apiDir } = getPaths();
     const isLocal = options.local !== false && !options.remote;
     const target = isLocal ? '--local' : '--remote';
 
@@ -171,8 +186,14 @@ export const dbCommands = {
     const dropSpinner = ora('Dropping tables...').start();
 
     const dropResult = runWrangler(
-      ['d1', 'execute', 'rank-everything-db', target, '--command',
-        'DROP TABLE IF EXISTS global_items; DROP TABLE IF EXISTS emoji_usage; DROP TABLE IF EXISTS daily_challenges;'],
+      [
+        'd1',
+        'execute',
+        'rank-everything-db',
+        target,
+        '--command',
+        'DROP TABLE IF EXISTS global_items; DROP TABLE IF EXISTS emoji_usage; DROP TABLE IF EXISTS daily_challenges;',
+      ],
       apiDir,
       true
     );
@@ -206,7 +227,8 @@ export const dbCommands = {
       query = `SELECT * FROM ${table} LIMIT 20`;
       console.log(chalk.cyan(`Inspecting table: ${table}\n`));
     } else {
-      query = "SELECT name, type FROM sqlite_master WHERE type IN ('table', 'index') ORDER BY type, name";
+      query =
+        "SELECT name, type FROM sqlite_master WHERE type IN ('table', 'index') ORDER BY type, name";
       console.log(chalk.cyan('Database schema:\n'));
     }
 
@@ -235,7 +257,9 @@ export const dbCommands = {
 
     if (result.success) {
       console.log(chalk.green('\n✅ Database created!'));
-      console.log(chalk.yellow('\n⚠️  Copy the database_id from above into apps/api/wrangler.toml'));
+      console.log(
+        chalk.yellow('\n⚠️  Copy the database_id from above into apps/api/wrangler.toml')
+      );
     } else {
       console.log(chalk.yellow('\nDatabase may already exist, or you need to login first:'));
       console.log(chalk.dim('  npx wrangler login'));

@@ -2,8 +2,12 @@ import { Routes, Route } from 'react-router-dom';
 import HomePage from './components/HomePage';
 import RoomLobby from './components/RoomLobby';
 import GameView from './components/GameView';
+import { usePreloadLLM } from './hooks/useEmojiClassifier';
 
 function App() {
+  // Preload the emoji LLM model in the background
+  usePreloadLLM();
+
   return (
     <div className="min-h-full">
       <Routes>

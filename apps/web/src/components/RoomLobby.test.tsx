@@ -5,16 +5,11 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import React, { useState } from 'react';
-import { BrowserRouter } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   createMockLobbyRoom,
   createMockRoom,
   mockServerEvents,
-  mockApiResponses
+  mockApiResponses,
 } from '../test/fixtures';
 
 // Mock fetch
@@ -33,40 +28,19 @@ vi.mock('react-router-dom', async () => {
 });
 
 // Store for simulating WebSocket messages
-let wsMessageHandler: ((data: string) => void) | null = null;
-let mockLastMessage: string | null = null;
+let _mockLastMessage: string | null = null;
 
 vi.mock('../hooks/usePartySocket', () => ({
   usePartySocket: () => ({
-    lastMessage: mockLastMessage,
+    lastMessage: _mockLastMessage,
     sendMessage: vi.fn(),
     isConnected: true,
   }),
 }));
 
 // Helper to simulate WebSocket message
-function simulateWsMessage(data: object) {
-  mockLastMessage = JSON.stringify(data);
-}
-
-// Wrapper with providers
-function createWrapper() {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false },
-    },
-  });
-
-  return function Wrapper({ children }: { children: React.ReactNode }) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          {children}
-        </BrowserRouter>
-      </QueryClientProvider>
-    );
-  };
+function _simulateWsMessage(data: object) {
+  _mockLastMessage = JSON.stringify(data);
 }
 
 // Simplified RoomLobby tests that don't rely on complex WebSocket mocking
@@ -74,7 +48,7 @@ describe('RoomLobby', () => {
   beforeEach(() => {
     mockFetch.mockReset();
     mockNavigate.mockReset();
-    mockLastMessage = null;
+    _mockLastMessage = null;
     localStorage.clear();
   });
 

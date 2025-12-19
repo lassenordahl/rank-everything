@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { ApiClient } from '../lib/api';
 import { usePartySocket } from './usePartySocket';
 import { useConnectionMonitor } from './useConnectionMonitor';
+import type { Room, Player, Item } from '@rank-everything/shared-types';
 
 export function useGameRoom(code: string) {
   const queryClient = useQueryClient();
@@ -42,34 +43,36 @@ export function useGameRoom(code: string) {
 
       // Update data in cache immediately
       if (event.type === 'room_updated') {
-        const players = event.room?.players?.map((p: any) => p.nickname).join(', ');
+        const roomEvent = event as { room: Room };
+        const players = roomEvent.room.players.map((p: Player) => p.nickname).join(', ');
         console.log(
-          `[useGameRoom] Setting query data for ${code}. Players (${event.room?.players?.length}): ${players}`
+          `[useGameRoom] Setting query data for ${code}. Players (${roomEvent.room.players.length}): ${players}`
         );
-        queryClient.setQueryData(['room', code], event.room);
+        queryClient.setQueryData(['room', code], roomEvent.room);
       }
 
       // Handle turn changes (update currentTurnPlayerId and timer)
       if (event.type === 'turn_changed') {
         console.log(`[useGameRoom] Turn changed to: ${event.playerId}`);
-        queryClient.setQueryData(['room', code], (oldRoom: any) => {
+        queryClient.setQueryData(['room', code], (oldRoom: Room | undefined) => {
           if (!oldRoom) return oldRoom;
           return {
             ...oldRoom,
-            currentTurnPlayerId: event.playerId,
-            timerEndAt: event.timerEndAt,
+            currentTurnPlayerId: event.playerId as string,
+            timerEndAt: event.timerEndAt as number | null,
           };
         });
       }
 
       // Handle item submission (add item to list)
       if (event.type === 'item_submitted') {
-        console.log(`[useGameRoom] Item submitted: ${event.item?.text}`);
-        queryClient.setQueryData(['room', code], (oldRoom: any) => {
+        const itemEvent = event as { item: Item };
+        console.log(`[useGameRoom] Item submitted: ${itemEvent.item.text}`);
+        queryClient.setQueryData(['room', code], (oldRoom: Room | undefined) => {
           if (!oldRoom) return oldRoom;
           return {
             ...oldRoom,
-            items: [...(oldRoom.items || []), event.item],
+            items: [...(oldRoom.items || []), itemEvent.item],
           };
         });
       }

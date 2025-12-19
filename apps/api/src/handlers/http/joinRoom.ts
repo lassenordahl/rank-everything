@@ -1,7 +1,7 @@
-import { GameRoomState } from '../../state/GameRoomState';
+import type { GameRoomState } from '../../state/GameRoomState';
 import { joinRoomSchema } from '@rank-everything/validation';
 import { generateId } from '../../utils/id';
-import { ServerEvent, Player } from '@rank-everything/shared-types';
+import type { ServerEvent, Player } from '@rank-everything/shared-types';
 
 export async function handleJoinRoom(
   req: Request,
@@ -16,7 +16,7 @@ export async function handleJoinRoom(
     });
   }
 
-  const { nickname } = await req.json() as { nickname: string };
+  const { nickname } = (await req.json()) as { nickname: string };
 
   // Validate input using Zod schema
   const result = joinRoomSchema.safeParse({ nickname });
@@ -31,7 +31,7 @@ export async function handleJoinRoom(
   // Check for duplicate nickname
   const normalize = (s: string) => s.trim().toLowerCase();
   const isDuplicate = state.room.players.some(
-    p => normalize(p.nickname) === normalize(result.data.nickname)
+    (p) => normalize(p.nickname) === normalize(result.data.nickname)
   );
 
   if (isDuplicate) {
@@ -58,10 +58,13 @@ export async function handleJoinRoom(
   // Broadcast update
   broadcast({ type: 'room_updated', room: state.room });
 
-  return new Response(JSON.stringify({
-    playerId,
-    room: state.room,
-  }), {
-    headers: { 'Content-Type': 'application/json', ...corsHeaders },
-  });
+  return new Response(
+    JSON.stringify({
+      playerId,
+      room: state.room,
+    }),
+    {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    }
+  );
 }

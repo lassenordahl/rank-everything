@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import ora from 'ora';
-import type { Room, RoomConfig, SubmissionMode } from '@rank-everything/shared-types';
+import type { Room, SubmissionMode } from '@rank-everything/shared-types';
 
 interface CreateOptions {
   players?: string;
@@ -52,7 +52,14 @@ export const roomCommands = {
     // Generate bot players
     const botNames = ['Alice', 'Bob', 'Charlie', 'Diana', 'Eve', 'Frank', 'Grace', 'Henry'];
     const players = [
-      { id: hostPlayerId, nickname: 'Host', roomId: roomCode, connected: true, rankings: {}, joinedAt: Date.now() },
+      {
+        id: hostPlayerId,
+        nickname: 'Host',
+        roomId: roomCode,
+        connected: true,
+        rankings: {},
+        joinedAt: Date.now(),
+      },
       ...Array.from({ length: playerCount - 1 }, (_, i) => ({
         id: generatePlayerId(),
         nickname: botNames[i % botNames.length],
@@ -82,14 +89,20 @@ export const roomCommands = {
     };
 
     if (options.json) {
-      console.log(JSON.stringify({
-        roomCode,
-        hostPlayerId,
-        players: room.players,
-        config: room.config,
-        status: room.status,
-        wsUrl: `ws://localhost:1999/party/${roomCode}`,
-      }, null, 2));
+      console.log(
+        JSON.stringify(
+          {
+            roomCode,
+            hostPlayerId,
+            players: room.players,
+            config: room.config,
+            status: room.status,
+            wsUrl: `ws://localhost:1999/party/${roomCode}`,
+          },
+          null,
+          2
+        )
+      );
       return;
     }
 
@@ -115,7 +128,9 @@ export const roomCommands = {
       console.log(chalk.dim(`Game started. ${players[0].nickname}'s turn.\n`));
     }
 
-    console.log(chalk.yellow('Note: This creates a mock room. Real rooms require the API server.\n'));
+    console.log(
+      chalk.yellow('Note: This creates a mock room. Real rooms require the API server.\n')
+    );
   },
 
   async simulate(options: SimulateOptions): Promise<void> {
@@ -136,7 +151,7 @@ export const roomCommands = {
 
     if (result.errors.length > 0) {
       spinner.fail(`Simulation failed with ${result.errors.length} errors`);
-      result.errors.forEach(e => console.error(chalk.red(`  - ${e}`)));
+      result.errors.forEach((e) => console.error(chalk.red(`  - ${e}`)));
       return;
     }
 
@@ -150,18 +165,31 @@ export const roomCommands = {
     const maxEvents = 20;
     const eventsToShow = result.events.slice(0, maxEvents);
 
-    eventsToShow.forEach(event => {
+    eventsToShow.forEach((event) => {
       const time = new Date(event.timestamp).toISOString().split('T')[1].split('.')[0];
       let msg = '';
 
       switch (event.type) {
-        case 'room_created': msg = 'Room created'; break;
-        case 'player_joined': msg = `Player joined: ${(event.data as any).nickname}`; break;
-        case 'game_started': msg = 'Game started'; break;
-        case 'item_submitted': msg = `Item submitted: "${(event.data as any).text}"`; break;
-        case 'turn_changed': msg = `Turn changed to Player`; break;
-        case 'game_ended': msg = 'Game ended'; break;
-        default: msg = event.type;
+        case 'room_created':
+          msg = 'Room created';
+          break;
+        case 'player_joined':
+          msg = `Player joined: ${(event.data as { nickname: string }).nickname}`;
+          break;
+        case 'game_started':
+          msg = 'Game started';
+          break;
+        case 'item_submitted':
+          msg = `Item submitted: "${(event.data as { text: string }).text}"`;
+          break;
+        case 'turn_changed':
+          msg = `Turn changed to Player`;
+          break;
+        case 'game_ended':
+          msg = 'Game ended';
+          break;
+        default:
+          msg = event.type;
       }
 
       console.log(`[${chalk.dim(time)}] ${msg}`);
@@ -175,15 +203,15 @@ export const roomCommands = {
     console.log('Final Standings:');
     console.log(chalk.dim('─'.repeat(40)));
 
-    result.room.players.forEach(p => {
+    result.room.players.forEach((p) => {
       console.log(chalk.bold(`\n${p.nickname}:`));
       // Sort items by ranking
       const submittedItems = result.room.items;
       Object.entries(p.rankings)
         .sort(([, a], [, b]) => a - b)
         .forEach(([itemId, rank]) => {
-           const item = submittedItems.find(i => i.id === itemId);
-           if (item) console.log(`  ${rank}. ${item.text}`);
+          const item = submittedItems.find((i) => i.id === itemId);
+          if (item) console.log(`  ${rank}. ${item.text}`);
         });
     });
 
@@ -227,7 +255,7 @@ export const roomCommands = {
     console.log(`Timer: ${mockState.timerRemaining}s`);
     console.log('');
     console.log('Players:');
-    mockState.players.forEach((p, i) => {
+    mockState.players.forEach((p, _i) => {
       const status = p.connected ? chalk.green('●') : chalk.red('○');
       console.log(`  ${status} ${p.nickname}`);
     });

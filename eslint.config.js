@@ -48,13 +48,19 @@ export default [
     },
     rules: {
       ...tseslint.configs.recommended.rules,
-      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
-      '@typescript-eslint/no-explicit-any': 'warn',
-      '@typescript-eslint/ban-ts-comment': 'warn',
-      '@typescript-eslint/no-unsafe-function-type': 'warn',
+      // STRICT: All these are errors, not warnings
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
+      '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/ban-ts-comment': 'error',
+      '@typescript-eslint/no-unsafe-function-type': 'error',
+      '@typescript-eslint/no-non-null-assertion': 'error',
+      '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
       'no-undef': 'off', // TypeScript handles this
-      'no-case-declarations': 'warn',
-      'no-empty': 'warn',
+      'no-case-declarations': 'error',
+      'no-empty': 'error',
     },
   },
   // Test files - add vitest globals

@@ -38,7 +38,7 @@ export const deployCommands = {
   async deploy(target: string | undefined, options: DeployOptions): Promise<void> {
     console.log(chalk.bold('\n🚀 Deploying to Cloudflare\n'));
 
-    const { apiDir, webDir, rootDir } = getPaths();
+    const { apiDir, webDir } = getPaths();
     const deployTarget = target || 'all';
     const isProd = options.prod === true;
     const env = isProd ? 'production' : 'preview';
@@ -80,14 +80,21 @@ export const deployCommands = {
         try {
           execSync('pnpm build', { cwd: webDir, stdio: 'pipe' });
           buildSpinner.succeed('Web app built');
-        } catch (error) {
+        } catch {
           buildSpinner.fail('Build failed');
           allSucceeded = false;
           continue;
         }
 
         // Deploy to Pages
-        const pagesArgs = ['wrangler', 'pages', 'deploy', 'dist', '--project-name', 'rank-everything'];
+        const pagesArgs = [
+          'wrangler',
+          'pages',
+          'deploy',
+          'dist',
+          '--project-name',
+          'rank-everything',
+        ];
         if (!isProd) {
           pagesArgs.push('--branch', 'preview');
         }
@@ -148,7 +155,7 @@ export const deployCommands = {
   async setup(): Promise<void> {
     console.log(chalk.bold('\n⚙️  First-Time Deployment Setup\n'));
 
-    const { apiDir, webDir } = getPaths();
+    const { apiDir } = getPaths();
 
     console.log('This will set up your Cloudflare resources for deployment.\n');
 

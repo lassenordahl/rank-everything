@@ -5,7 +5,8 @@
  */
 
 import React from 'react';
-import { render, RenderOptions } from '@testing-library/react';
+import type { RenderOptions } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PartySocketProvider } from '../contexts/PartySocketContext';
@@ -35,8 +36,12 @@ function createTestQueryClient() {
 function TestProviders({ children }: TestProvidersProps) {
   const queryClient = createTestQueryClient();
 
-  return React.createElement(QueryClientProvider, { client: queryClient },
-    React.createElement(PartySocketProvider, null,
+  return React.createElement(
+    QueryClientProvider,
+    { client: queryClient },
+    React.createElement(
+      PartySocketProvider,
+      null,
       React.createElement(BrowserRouter, null, children)
     )
   );
@@ -97,7 +102,7 @@ export function createMockFetch() {
 // ============================================================================
 
 export function createMockWebSocket() {
-  const listeners: Record<string, Function[]> = {
+  const listeners: Record<string, Array<(...args: unknown[]) => void>> = {
     open: [],
     message: [],
     close: [],
@@ -111,34 +116,34 @@ export function createMockWebSocket() {
     send: vi.fn(),
     close: vi.fn(),
 
-    addEventListener: (event: string, callback: Function) => {
+    addEventListener: (event: string, callback: (...args: unknown[]) => void) => {
       if (!listeners[event]) listeners[event] = [];
       listeners[event].push(callback);
     },
 
-    removeEventListener: (event: string, callback: Function) => {
+    removeEventListener: (event: string, callback: (...args: unknown[]) => void) => {
       if (listeners[event]) {
-        listeners[event] = listeners[event].filter(cb => cb !== callback);
+        listeners[event] = listeners[event].filter((cb) => cb !== callback);
       }
     },
 
     // Test helpers
     simulateOpen: () => {
-      listeners.open.forEach(cb => cb(new Event('open')));
+      listeners.open.forEach((cb) => cb(new Event('open')));
     },
 
     simulateMessage: (data: unknown) => {
       const messageData = typeof data === 'string' ? data : JSON.stringify(data);
-      listeners.message.forEach(cb => cb(new MessageEvent('message', { data: messageData })));
+      listeners.message.forEach((cb) => cb(new MessageEvent('message', { data: messageData })));
     },
 
     simulateClose: () => {
       instance.readyState = WebSocket.CLOSED;
-      listeners.close.forEach(cb => cb(new CloseEvent('close')));
+      listeners.close.forEach((cb) => cb(new CloseEvent('close')));
     },
 
     simulateError: () => {
-      listeners.error.forEach(cb => cb(new Event('error')));
+      listeners.error.forEach((cb) => cb(new Event('error')));
     },
   };
 
@@ -194,7 +199,7 @@ export function createMockWebSocket() {
 // ============================================================================
 
 export function waitForMs(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export async function waitForCondition(

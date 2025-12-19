@@ -43,6 +43,7 @@ export class GameSimulator {
         submissionMode: 'round-robin',
         timerEnabled: true,
         timerDuration: 60,
+        rankingTimeout: 15,
       },
       status: 'lobby',
       players: [],
@@ -50,6 +51,7 @@ export class GameSimulator {
       currentTurnPlayerId: null,
       currentTurnIndex: 0,
       timerEndAt: null,
+      rankingTimerEndAt: null,
       createdAt: this.startTime,
       lastActivityAt: this.startTime,
     } as Room;
@@ -93,7 +95,7 @@ export class GameSimulator {
   }
 
   removePlayer(playerId: string): { success: boolean; error?: string } {
-    const playerIndex = this.room.players.findIndex(p => p.id === playerId);
+    const playerIndex = this.room.players.findIndex((p) => p.id === playerId);
     if (playerIndex === -1) {
       const error = `Player ${playerId} not found`;
       this.errors.push(error);
@@ -103,7 +105,7 @@ export class GameSimulator {
     if (playerId === this.room.hostPlayerId) {
       // Transfer host to next player if possible
       if (this.room.players.length > 1) {
-        const nextHost = this.room.players.find(p => p.id !== playerId);
+        const nextHost = this.room.players.find((p) => p.id !== playerId);
         if (nextHost) {
           this.room.hostPlayerId = nextHost.id;
           this.logEvent('host_transferred', { newHostId: nextHost.id });
@@ -124,7 +126,7 @@ export class GameSimulator {
   }
 
   disconnectPlayer(playerId: string): { success: boolean; error?: string } {
-    const player = this.room.players.find(p => p.id === playerId);
+    const player = this.room.players.find((p) => p.id === playerId);
     if (!player) {
       const error = `Player ${playerId} not found`;
       this.errors.push(error);
@@ -137,7 +139,7 @@ export class GameSimulator {
   }
 
   reconnectPlayer(playerId: string): { success: boolean; error?: string } {
-    const player = this.room.players.find(p => p.id === playerId);
+    const player = this.room.players.find((p) => p.id === playerId);
     if (!player) {
       const error = `Player ${playerId} not found`;
       this.errors.push(error);
@@ -178,7 +180,7 @@ export class GameSimulator {
 
     this.logEvent('game_started', {
       playerCount: this.room.players.length,
-      firstTurn: this.room.currentTurnPlayerId
+      firstTurn: this.room.currentTurnPlayerId,
     });
 
     return { success: true };
@@ -216,7 +218,7 @@ export class GameSimulator {
 
     // Check for duplicates
     const isDuplicate = this.room.items.some(
-      item => item.text.toLowerCase() === text.toLowerCase()
+      (item) => item.text.toLowerCase() === text.toLowerCase()
     );
     if (isDuplicate) {
       const error = 'Duplicate item';
@@ -271,14 +273,14 @@ export class GameSimulator {
       return { success: false, error };
     }
 
-    const player = this.room.players.find(p => p.id === playerId);
+    const player = this.room.players.find((p) => p.id === playerId);
     if (!player) {
       const error = `Player ${playerId} not found`;
       this.errors.push(error);
       return { success: false, error };
     }
 
-    const item = this.room.items.find(i => i.id === itemId);
+    const item = this.room.items.find((i) => i.id === itemId);
     if (!item) {
       const error = `Item ${itemId} not found`;
       this.errors.push(error);
@@ -292,9 +294,7 @@ export class GameSimulator {
     }
 
     // Check if ranking slot is already used
-    const existingRanking = Object.entries(player.rankings).find(
-      ([_, r]) => r === ranking
-    );
+    const existingRanking = Object.entries(player.rankings).find(([_, r]) => r === ranking);
     if (existingRanking) {
       const error = `Ranking slot ${ranking} already used`;
       this.errors.push(error);
@@ -325,7 +325,7 @@ export class GameSimulator {
     }
 
     // Find connected players
-    const connectedPlayers = this.room.players.filter(p => p.connected);
+    const connectedPlayers = this.room.players.filter((p) => p.connected);
     if (connectedPlayers.length === 0) {
       return;
     }
@@ -344,7 +344,7 @@ export class GameSimulator {
 
     this.logEvent('turn_changed', {
       playerId: this.room.currentTurnPlayerId,
-      turnIndex: nextIndex
+      turnIndex: nextIndex,
     });
   }
 
@@ -385,11 +385,11 @@ export class GameSimulator {
   }
 
   getPlayer(playerId: string): Player | undefined {
-    return this.room.players.find(p => p.id === playerId);
+    return this.room.players.find((p) => p.id === playerId);
   }
 
   getCurrentTurnPlayer(): Player | undefined {
-    return this.room.players.find(p => p.id === this.room.currentTurnPlayerId);
+    return this.room.players.find((p) => p.id === this.room.currentTurnPlayerId);
   }
 
   getResult(): SimulationResult {
@@ -477,9 +477,16 @@ export function runFullGame(
 
   // Play 10 rounds
   const items = [
-    'Pizza', 'Coffee', 'Sleeping in', 'Mondays',
-    'Free samples', 'Traffic', 'Beach', 'Snow',
-    'Chocolate', 'Exercise'
+    'Pizza',
+    'Coffee',
+    'Sleeping in',
+    'Mondays',
+    'Free samples',
+    'Traffic',
+    'Beach',
+    'Snow',
+    'Chocolate',
+    'Exercise',
   ];
 
   for (let i = 0; i < 10; i++) {
@@ -496,8 +503,8 @@ export function runFullGame(
       const ranking = ((i + pIdx) % 10) + 1;
       // Only rank if slot is available
       const existingRankings = Object.values(player.rankings);
-      if (!existingRankings.includes(ranking)) {
-        sim.rankItem(player.id, result.itemId!, ranking);
+      if (!existingRankings.includes(ranking) && result.itemId) {
+        sim.rankItem(player.id, result.itemId, ranking);
       }
     });
   }

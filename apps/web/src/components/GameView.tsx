@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useGameRoom } from '../hooks/useGameRoom';
+import { useEmojiClassifier } from '../hooks/useEmojiClassifier';
 import type { Item } from '@rank-everything/shared-types';
 import RevealScreen from './RevealScreen';
 import RandomRollModal from './RandomRollModal';
 import { COPY } from '../lib/copy';
+import TimerProgressBar from './TimerProgressBar';
 
 export default function GameView() {
   const { code } = useParams<{ code: string }>();
@@ -14,6 +16,14 @@ export default function GameView() {
   const [now, setNow] = useState(Date.now());
 
   const { room, sendMessage, isMyTurn, playerId } = useGameRoom(code || '');
+
+  // Emoji classification from local LLM
+  const {
+    emoji: classifiedEmoji,
+    isClassifying,
+    isModelLoading,
+    modelProgress,
+  } = useEmojiClassifier(inputText);
 
   // Derive current item to rank from room state
   // Find the most recent unranked item for this player
@@ -45,6 +55,7 @@ export default function GameView() {
       JSON.stringify({
         type: 'submit_item',
         text: inputText.trim(),
+        emoji: classifiedEmoji || undefined, // Include classified emoji if available
       })
     );
 
@@ -89,12 +100,11 @@ export default function GameView() {
       <div className="text-center mb-4">
         <p className="text-sm text-muted">Room {code}</p>
         <p className="text-lg font-bold">{room?.items.length || 0} / 10 items</p>
-        {timerRemaining !== null && timerRemaining > 0 && (
-          <p
-            className={`text-sm ${timerRemaining <= 10 ? 'text-red-600 font-bold' : 'text-muted'}`}
-          >
-            {timerRemaining}s remaining
-          </p>
+        {timerRemaining !== null && timerRemaining > 0 && room?.config.timerDuration && (
+          <TimerProgressBar
+            secondsRemaining={timerRemaining}
+            totalSeconds={room.config.timerDuration}
+          />
         )}
       </div>
 
@@ -112,16 +122,34 @@ export default function GameView() {
       {/* Submit Item (when it's your turn and no item to rank) */}
       {isMyTurn && !effectiveCurrentItem && (
         <div className="card mb-6">
-          <input
-            type="text"
-            placeholder={COPY.game.enterItem}
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSubmitItem()}
-            className="input mb-4"
-            maxLength={100}
-            autoFocus
-          />
+          <div className="flex items-center gap-3 mb-4">
+            {/* Emoji Preview Box */}
+            <div className="w-12 h-12 flex items-center justify-center border-2 border-black flex-shrink-0">
+              {isModelLoading ? (
+                <span className="text-xs text-muted text-center leading-tight">
+                  {modelProgress > 0 ? `${modelProgress}%` : 'AI...'}
+                </span>
+              ) : isClassifying ? (
+                <span className="animate-pulse text-2xl">⏳</span>
+              ) : classifiedEmoji ? (
+                <span className="text-2xl">{classifiedEmoji}</span>
+              ) : (
+                <span className="text-2xl text-muted">❓</span>
+              )}
+            </div>
+
+            {/* Text Input */}
+            <input
+              type="text"
+              placeholder={COPY.game.enterItem}
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSubmitItem()}
+              className="input flex-1"
+              maxLength={100}
+              autoFocus
+            />
+          </div>
           <div className="flex gap-3">
             <button
               onClick={handleSubmitItem}

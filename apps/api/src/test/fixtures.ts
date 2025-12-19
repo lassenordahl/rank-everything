@@ -40,6 +40,7 @@ export function createMockRoomConfig(overrides: Partial<RoomConfig> = {}): RoomC
     submissionMode: 'round-robin',
     timerEnabled: true,
     timerDuration: 60,
+    rankingTimeout: 15,
     ...overrides,
   };
 }
@@ -58,6 +59,7 @@ export function createMockRoom(overrides: Partial<Room> = {}): Room {
     currentTurnPlayerId: null,
     currentTurnIndex: 0,
     timerEndAt: null,
+    rankingTimerEndAt: null,
     createdAt: now,
     lastActivityAt: now,
     ...overrides,
@@ -125,15 +127,12 @@ export const mockRequests = {
   joinRoom: (nickname: string = 'Player') =>
     createMockRequest('POST', { action: 'join', nickname }),
 
-  startGame: () =>
-    createMockRequest('POST', { action: 'start' }),
+  startGame: () => createMockRequest('POST', { action: 'start' }),
 
-  submitItem: (text: string = 'Test Item') =>
-    createMockRequest('POST', { action: 'submit', text }),
+  submitItem: (text: string = 'Test Item') => createMockRequest('POST', { action: 'submit', text }),
 
   rankItem: (itemId: string, ranking: number) =>
     createMockRequest('POST', { action: 'rank', itemId, ranking }),
 
-  getRoom: () =>
-    createMockRequest('GET'),
+  getRoom: () => createMockRequest('GET'),
 };

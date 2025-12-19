@@ -1,7 +1,7 @@
 import type * as Party from 'partykit/server';
-import { GameRoomState } from '../../state/GameRoomState';
+import type { GameRoomState } from '../../state/GameRoomState';
 import { rankItemSchema } from '@rank-everything/validation';
-import { ServerEvent } from '@rank-everything/shared-types';
+import type { ServerEvent } from '@rank-everything/shared-types';
 
 export function handleRankItem(
   message: { itemId: string; ranking: number },
@@ -14,7 +14,9 @@ export function handleRankItem(
 
   const playerId = state.connections.get(conn.id);
   if (!playerId) {
-    conn.send(JSON.stringify({ type: 'error', message: 'Not authenticated', code: 'UNAUTHORIZED' }));
+    conn.send(
+      JSON.stringify({ type: 'error', message: 'Not authenticated', code: 'UNAUTHORIZED' })
+    );
     return;
   }
 
@@ -31,7 +33,9 @@ export function handleRankItem(
   if (!player) return;
 
   // Check if slot is taken by another item
-  const existingItemId = Object.keys(player.rankings).find(key => player.rankings[key] === ranking);
+  const existingItemId = Object.keys(player.rankings).find(
+    (key) => player.rankings[key] === ranking
+  );
   if (existingItemId && existingItemId !== itemId) {
     // Optional: Clear the old slot or error
     // For now we just overwrite

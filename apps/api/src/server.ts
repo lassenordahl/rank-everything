@@ -1,30 +1,12 @@
 import type * as Party from 'partykit/server';
-import type {
-  Room,
-  Player,
-  Item,
-  RoomConfig,
-  ClientEvent,
-  ServerEvent,
-} from '@rank-everything/shared-types';
-import { GameRoomState, RoomState } from './state/GameRoomState';
+import type { Room, ClientEvent, ServerEvent } from '@rank-everything/shared-types';
+import { GameRoomState } from './state/GameRoomState';
 import { handleCreateRoom } from './handlers/http/createRoom';
 import { handleJoinRoom } from './handlers/http/joinRoom';
 import { handleStartGame } from './handlers/http/startGame';
 import { handleSubmitItem } from './handlers/ws/submitItem';
 import { handleRankItem } from './handlers/ws/rankItem';
 import { handleSkipTurn } from './handlers/ws/skipTurn';
-import {
-  createRoomSchema,
-  joinRoomSchema,
-  submitItemSchema,
-  rankItemSchema,
-} from '@rank-everything/validation';
-
-// Generate unique IDs
-function generateId(): string {
-  return Math.random().toString(36).substring(2, 15);
-}
 
 // Grace period before removing disconnected players (60 seconds)
 const DISCONNECT_GRACE_PERIOD_MS = 60 * 1000;
@@ -52,6 +34,11 @@ export default class GameRoom implements Party.Server {
     const storedRoom = await this.room.storage.get<Room>('room');
     if (storedRoom) {
       this.gameState.state.room = storedRoom;
+    }
+
+    // If there's an active ranking timer, set the alarm
+    if (storedRoom?.rankingTimerEndAt && storedRoom.rankingTimerEndAt > Date.now()) {
+      await this.room.storage.setAlarm(storedRoom.rankingTimerEndAt);
     }
   }
 
@@ -123,6 +110,10 @@ export default class GameRoom implements Party.Server {
             // Persist state (status changed)
             if (response.ok && this.gameState.room) {
               await this.room.storage.put('room', this.gameState.room);
+              // Set turn timer alarm if timer is enabled
+              if (this.gameState.room.timerEndAt) {
+                await this.room.storage.setAlarm(this.gameState.room.timerEndAt);
+              }
             }
             return response;
           }
@@ -140,7 +131,7 @@ export default class GameRoom implements Party.Server {
   }
 
   // Handle WebSocket connections
-  async onConnect(conn: Party.Connection, ctx: Party.ConnectionContext) {
+  async onConnect(conn: Party.Connection, _ctx: Party.ConnectionContext) {
     // Recover player ID from query param or previous session?
     // Current implementation relies on client knowing their ID via localStorage and API response,
     // but the websocket doesn't automatically authenticate.
@@ -172,8 +163,12 @@ export default class GameRoom implements Party.Server {
             this.saveToGlobalPool.bind(this),
             this.fetchEmoji.bind(this)
           );
-          // Advance turn after item submission in round-robin mode
-          if (this.gameState.room?.config.submissionMode === 'round-robin') {
+          // Check if game should end (10 items reached)
+          if (this.gameState.room && this.gameState.room.items.length >= 10) {
+            this.gameState.endGame();
+            this.broadcast({ type: 'game_ended' });
+          } else if (this.gameState.room?.config.submissionMode === 'round-robin') {
+            // Advance turn after item submission in round-robin mode
             const result = this.gameState.advanceTurn();
             if (result) {
               this.broadcast({
@@ -181,8 +176,22 @@ export default class GameRoom implements Party.Server {
                 playerId: result.nextTurnPlayerId,
                 timerEndAt: this.gameState.room?.timerEndAt || null,
               });
+              // Set alarm for next turn timer
+              if (this.gameState.room?.timerEndAt) {
+                await this.room.storage.setAlarm(this.gameState.room.timerEndAt);
+              }
             }
           }
+
+          // Start ranking timer for the new item (if game hasn't ended)
+          if (this.gameState.room && this.gameState.room.status === 'in-progress') {
+            this.gameState.startRankingTimer();
+            // Set alarm for when ranking timer expires
+            if (this.gameState.room.rankingTimerEndAt) {
+              await this.room.storage.setAlarm(this.gameState.room.rankingTimerEndAt);
+            }
+          }
+
           // Also broadcast room_updated so clients get full state (items list)
           // This ensures clients don't miss item_submitted due to message race conditions
           if (this.gameState.room) {
@@ -196,7 +205,7 @@ export default class GameRoom implements Party.Server {
           if (this.gameState.room) await this.room.storage.put('room', this.gameState.room);
           break;
 
-        case 'skip_turn':
+        case 'skip_turn': {
           const turnChanged = handleSkipTurn(sender, this.gameState, (e) => this.broadcast(e));
           if (turnChanged) {
             const result = this.gameState.advanceTurn();
@@ -206,10 +215,15 @@ export default class GameRoom implements Party.Server {
                 playerId: result.nextTurnPlayerId,
                 timerEndAt: this.gameState.room?.timerEndAt || null,
               });
+              // Set alarm for next turn timer
+              if (this.gameState.room?.timerEndAt) {
+                await this.room.storage.setAlarm(this.gameState.room.timerEndAt);
+              }
             }
             if (this.gameState.room) await this.room.storage.put('room', this.gameState.room);
           }
           break;
+        }
 
         case 'reconnect':
           await this.handleReconnect(data.playerId, sender);
@@ -358,5 +372,45 @@ export default class GameRoom implements Party.Server {
 
   broadcast(event: ServerEvent) {
     this.room.broadcast(JSON.stringify(event));
+  }
+
+  /**
+   * Called when a scheduled alarm fires (via room.storage.setAlarm).
+   * Used for ranking timeout - auto-assigns random ranks for players who haven't ranked.
+   */
+  async onAlarm() {
+    if (!this.gameState.room) return;
+    if (this.gameState.room.status !== 'in-progress') return;
+
+    let stateChanged = false;
+
+    // Check if turn timer expired (submission timer)
+    const turnTimedOut = this.gameState.checkTurnTimeout();
+    if (turnTimedOut && this.gameState.room.currentTurnPlayerId) {
+      console.log(`Turn timeout: advancing turn for room ${this.room.id}`);
+      this.broadcast({
+        type: 'turn_changed',
+        playerId: this.gameState.room.currentTurnPlayerId,
+        timerEndAt: this.gameState.room.timerEndAt || null,
+      });
+      // Set alarm for next turn timer
+      if (this.gameState.room.timerEndAt) {
+        await this.room.storage.setAlarm(this.gameState.room.timerEndAt);
+      }
+      stateChanged = true;
+    }
+
+    // Check if ranking timer expired and auto-assign ranks
+    const rankingTimedOut = this.gameState.checkRankingTimeout();
+    if (rankingTimedOut) {
+      console.log(`Ranking timeout: auto-assigned random ranks for room ${this.room.id}`);
+      stateChanged = true;
+    }
+
+    if (stateChanged) {
+      // Broadcast the updated room state
+      this.broadcast({ type: 'room_updated', room: this.gameState.room });
+      await this.room.storage.put('room', this.gameState.room);
+    }
   }
 }

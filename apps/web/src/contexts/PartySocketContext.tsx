@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useRef, useState, ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { config } from '../lib/config';
 
 interface PartySocketContextType {

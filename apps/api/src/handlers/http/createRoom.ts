@@ -1,5 +1,5 @@
-import type { ServerEvent, RoomConfig } from '@rank-everything/shared-types';
-import { GameRoomState } from '../../state/GameRoomState';
+import type { RoomConfig } from '@rank-everything/shared-types';
+import type { GameRoomState } from '../../state/GameRoomState';
 import { createRoomSchema } from '@rank-everything/validation';
 import { generateId } from '../../utils/id';
 
@@ -16,7 +16,10 @@ export async function handleCreateRoom(
     });
   }
 
-  const { nickname, config } = await req.json() as { nickname: string, config?: Partial<RoomConfig> };
+  const { nickname, config } = (await req.json()) as {
+    nickname: string;
+    config?: Partial<RoomConfig>;
+  };
 
   // Validate input using Zod schema
   const result = createRoomSchema.safeParse({ nickname, config });
@@ -36,11 +39,14 @@ export async function handleCreateRoom(
   // Need to persist storage - this should be done by the caller or we pass a persist callback
   // For now we assume the caller will handle persistence if needed or we update state methods to be sync
 
-  return new Response(JSON.stringify({
-    roomCode: roomId,
-    playerId: hostPlayerId,
-    room: state.room
-  }), {
-    headers: { 'Content-Type': 'application/json', ...corsHeaders },
-  });
+  return new Response(
+    JSON.stringify({
+      roomCode: roomId,
+      playerId: hostPlayerId,
+      room: state.room,
+    }),
+    {
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    }
+  );
 }

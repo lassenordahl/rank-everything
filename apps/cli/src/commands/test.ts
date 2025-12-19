@@ -30,7 +30,7 @@ export const testCommands = {
       try {
         console.log(chalk.dim(`\n$ ${command}\n`));
         execSync(command, { cwd: rootDir, stdio: 'inherit' });
-      } catch (e) {
+      } catch {
         process.exit(1);
       }
       return;
@@ -62,19 +62,31 @@ export const testCommands = {
       execSync(command, { cwd: rootDir, stdio: 'inherit' });
 
       if (options.json) {
-        console.log(JSON.stringify({
-          status: 'passed',
-          suite: suite || 'all',
-          timestamp: new Date().toISOString()
-        }, null, 2));
+        console.log(
+          JSON.stringify(
+            {
+              status: 'passed',
+              suite: suite || 'all',
+              timestamp: new Date().toISOString(),
+            },
+            null,
+            2
+          )
+        );
       }
-    } catch (error) {
+    } catch {
       if (options.json) {
-        console.log(JSON.stringify({
-          status: 'failed',
-          suite: suite || 'all',
-          timestamp: new Date().toISOString()
-        }, null, 2));
+        console.log(
+          JSON.stringify(
+            {
+              status: 'failed',
+              suite: suite || 'all',
+              timestamp: new Date().toISOString(),
+            },
+            null,
+            2
+          )
+        );
       }
       process.exit(1);
     }
@@ -96,9 +108,7 @@ export const testCommands = {
     ];
 
     if (feature) {
-      const found = specFeatures.find(f =>
-        f.name.toLowerCase().includes(feature.toLowerCase())
-      );
+      const found = specFeatures.find((f) => f.name.toLowerCase().includes(feature.toLowerCase()));
 
       if (found) {
         console.log(chalk.cyan(`Testing: ${found.name} - ${found.desc}`));
@@ -106,7 +116,7 @@ export const testCommands = {
       } else {
         console.log(chalk.red(`Feature not found: ${feature}`));
         console.log('\nAvailable features:');
-        specFeatures.forEach(f => {
+        specFeatures.forEach((f) => {
           console.log(`  - ${f.name}: ${f.desc}`);
         });
       }
@@ -118,9 +128,10 @@ export const testCommands = {
       console.log(chalk.dim('─'.repeat(50)));
       console.log('');
 
-      specFeatures.forEach(f => {
+      specFeatures.forEach((f) => {
         const icon = f.status === 'passed' ? '✓' : f.status === 'failed' ? '✗' : '○';
-        const color = f.status === 'passed' ? chalk.green : f.status === 'failed' ? chalk.red : chalk.gray;
+        const color =
+          f.status === 'passed' ? chalk.green : f.status === 'failed' ? chalk.red : chalk.gray;
         console.log(color(`  ${icon} ${f.name}: ${f.desc}`));
       });
 
@@ -132,7 +143,7 @@ export const testCommands = {
     }
 
     console.log('Spec features to test:');
-    specFeatures.forEach(f => {
+    specFeatures.forEach((f) => {
       console.log(chalk.dim(`  ○ ${f.name}: ${f.desc}`));
     });
 

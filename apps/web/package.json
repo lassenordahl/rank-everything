@@ -18,6 +18,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@huggingface/transformers": "^3.8.1",
     "@rank-everything/shared-types": "workspace:*",
     "@rank-everything/validation": "workspace:^",
     "@tanstack/react-query": "^5.90.12",
