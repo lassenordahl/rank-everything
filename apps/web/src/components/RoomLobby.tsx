@@ -1,15 +1,22 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { usePartySocket } from '../hooks/usePartySocket';
+import { useJoinRoom, useStartGame } from '../hooks/useGameMutations';
+import { config } from '../lib/config';
 import type { Room } from '@rank-everything/shared-types';
 
 export default function RoomLobby() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
   const [room, setRoom] = useState<Room | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [nickname, setNickname] = useState('');
+  const [isJoining, setIsJoining] = useState(false);
   const playerId = localStorage.getItem('playerId');
 
-  const { lastMessage } = usePartySocket(code || '');
+  const { lastMessage, sendMessage } = usePartySocket(code || '');
+  const joinRoom = useJoinRoom();
+  const startGame = useStartGame();
 
   useEffect(() => {
     if (lastMessage) {
@@ -28,19 +35,72 @@ export default function RoomLobby() {
   }, [lastMessage, code, navigate]);
 
   const handleStartGame = async () => {
-    try {
-      await fetch(`/party/${code}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'start' }),
-      });
-    } catch (error) {
-      console.error('Failed to start game:', error);
-    }
+    if (!code) return;
+    startGame.mutate(code, {
+      onError: (error) => console.error('Failed to start game:', error)
+    });
+  };
+
+  const handleJoin = async () => {
+    if (!nickname.trim() || !code) return;
+
+    joinRoom.mutate({ code, nickname }, {
+      onSuccess: (data) => {
+        localStorage.setItem('playerId', data.playerId);
+        localStorage.setItem('roomCode', code);
+        window.location.reload();
+      },
+      onError: (error) => console.error('Failed to join room:', error)
+    });
   };
 
   const isHost = room?.hostPlayerId === playerId;
-  const canStart = room && room.players.length >= 2;
+  const canStart = room && room.players.length >= 1;
+  const isJoined = room?.players.some(p => p.id === playerId);
+
+  // Loading state
+  if (!room) {
+    return (
+      <div className="min-h-full flex items-center justify-center">
+        <p className="text-muted">Loading room...</p>
+      </div>
+    );
+  }
+
+  // Not joined state - Show Join Form
+  if (!isJoined) {
+    return (
+      <div className="min-h-full flex flex-col items-center justify-center p-6">
+        <div className="card w-full max-w-sm">
+          <div className="text-center mb-6">
+            <p className="text-muted mb-2">Join Room</p>
+            <h1 className="text-4xl font-bold tracking-widest mb-4">{code}</h1>
+            <p>Enter your nickname to join</p>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <input
+              type="text"
+              placeholder="Your nickname"
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              className="input"
+              maxLength={20}
+              autoFocus
+            />
+
+            <button
+              onClick={handleJoin}
+              disabled={!nickname.trim() || joinRoom.isPending}
+              className="btn disabled:opacity-50"
+            >
+              {joinRoom.isPending ? 'Joining...' : 'Join Game'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-full flex flex-col items-center p-6">
@@ -69,7 +129,7 @@ export default function RoomLobby() {
       </div>
 
       {/* Settings (host only) */}
-      {isHost && room && (
+      {isHost && (
         <div className="card w-full max-w-sm mb-8">
           <h2 className="font-bold mb-4">Settings</h2>
           <div className="space-y-2 text-sm">
@@ -91,10 +151,10 @@ export default function RoomLobby() {
       {isHost && (
         <button
           onClick={handleStartGame}
-          disabled={!canStart}
+          disabled={!canStart || startGame.isPending}
           className="btn disabled:opacity-50"
         >
-          {canStart ? 'Start Game' : 'Need 2+ Players'}
+          {startGame.isPending ? 'Starting...' : (canStart ? 'Start Game' : 'Need 1+ Players')}
         </button>
       )}
 

@@ -80,8 +80,20 @@ export default class GameRoom implements Party.Server {
     }
   }
 
+  // CORS headers for cross-origin requests
+  private corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+
   // Handle HTTP requests (REST API)
   async onRequest(req: Party.Request): Promise<Response> {
+    // Handle CORS preflight
+    if (req.method === 'OPTIONS') {
+      return new Response(null, { headers: this.corsHeaders });
+    }
+
     const url = new URL(req.url);
 
     // GET /party/:roomId - Get room state
@@ -89,12 +101,12 @@ export default class GameRoom implements Party.Server {
       if (!this.state.room) {
         return new Response(JSON.stringify({ error: 'Room not found' }), {
           status: 404,
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...this.corsHeaders },
         });
       }
 
       return new Response(JSON.stringify({ room: this.state.room }), {
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...this.corsHeaders },
       });
     }
 
@@ -117,17 +129,17 @@ export default class GameRoom implements Party.Server {
 
         return new Response(JSON.stringify({ error: 'Invalid action' }), {
           status: 400,
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...this.corsHeaders },
         });
       } catch (error) {
         return new Response(JSON.stringify({ error: 'Invalid request' }), {
           status: 400,
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...this.corsHeaders },
         });
       }
     }
 
-    return new Response('Method not allowed', { status: 405 });
+    return new Response('Method not allowed', { status: 405, headers: this.corsHeaders });
   }
 
   // Create a new room
@@ -135,7 +147,7 @@ export default class GameRoom implements Party.Server {
     if (this.state.room) {
       return new Response(JSON.stringify({ error: 'Room already exists' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...this.corsHeaders },
       });
     }
 
@@ -175,7 +187,7 @@ export default class GameRoom implements Party.Server {
       playerId: hostPlayerId,
       room,
     }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...this.corsHeaders },
     });
   }
 
@@ -184,14 +196,14 @@ export default class GameRoom implements Party.Server {
     if (!this.state.room) {
       return new Response(JSON.stringify({ error: 'Room not found', code: 'ROOM_NOT_FOUND' }), {
         status: 404,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...this.corsHeaders },
       });
     }
 
     if (this.state.room.status !== 'lobby') {
       return new Response(JSON.stringify({ error: 'Game already started', code: 'GAME_ALREADY_STARTED' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...this.corsHeaders },
       });
     }
 
@@ -213,12 +225,13 @@ export default class GameRoom implements Party.Server {
 
     // Broadcast to all connections
     this.broadcast({ type: 'player_joined', player });
+    this.broadcast({ type: 'room_updated', room: this.state.room });
 
     return new Response(JSON.stringify({
       playerId,
       room: this.state.room,
     }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...this.corsHeaders },
     });
   }
 
@@ -227,21 +240,21 @@ export default class GameRoom implements Party.Server {
     if (!this.state.room) {
       return new Response(JSON.stringify({ error: 'Room not found' }), {
         status: 404,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...this.corsHeaders },
       });
     }
 
     if (this.state.room.status !== 'lobby') {
       return new Response(JSON.stringify({ error: 'Game already started' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...this.corsHeaders },
       });
     }
 
-    if (this.state.room.players.length < 2) {
+    if (this.state.room.players.length < 1) {
       return new Response(JSON.stringify({ error: 'Not enough players', code: 'NOT_ENOUGH_PLAYERS' }), {
         status: 400,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...this.corsHeaders },
       });
     }
 
@@ -263,7 +276,7 @@ export default class GameRoom implements Party.Server {
     });
 
     return new Response(JSON.stringify({ room: this.state.room }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...this.corsHeaders },
     });
   }
 

@@ -122,3 +122,65 @@ See [CLI_SPEC.md](specs/CLI_SPEC.md) for full command reference.
 - Animations
 - User accounts
 - Sound effects
+
+## Agent Guidelines for Development
+
+### CRITICAL: Build & Test Verification
+
+**Before completing ANY task that modifies code:**
+
+1. **Run TypeScript Check**:
+   ```bash
+   pnpm tsc --noEmit -p apps/web
+   ```
+
+2. **Run Tests**:
+   ```bash
+   pnpm test --prefix apps/web
+   ```
+
+3. **Check for Runtime Errors**:
+   - If dev servers are running, check browser console for errors
+   - Look for `ReferenceError`, `TypeError`, or unhandled exceptions
+
+### Development Workflow
+
+1. **Before making changes**: Understand the current state of the component/file
+2. **After making changes**: Always verify:
+   - No TypeScript errors (`pnpm tsc --noEmit`)
+   - Tests pass (`pnpm test`)
+   - No runtime errors in browser console
+
+### Common Mistakes to Avoid
+
+1. **Missing imports**: Always add imports when using new components/hooks
+2. **Missing state declarations**: When using `setX()`, ensure `const [x, setX] = useState()` exists
+3. **Breaking changes to shared types**: Check all consumers when modifying types
+4. **Environment variables**: Ensure `.env` files are properly configured
+
+### Testing Requirements
+
+- **Unit tests**: All API client methods must have tests
+- **Component tests**: Critical user flows must have tests
+- **Test location**: Place tests next to source files (`*.test.ts` or `*.test.tsx`)
+- **Run before PR**: `pnpm test` must pass before considering work complete
+
+### Error Recovery
+
+If you introduce a bug:
+1. Immediately check the error message and stack trace
+2. View the relevant file at the line number mentioned
+3. Fix the issue before proceeding with other work
+4. Run tests again to verify the fix
+
+### Monorepo Commands Reference
+
+```bash
+# From root directory
+pnpm dev                    # Start all dev servers
+pnpm build                  # Build all packages
+pnpm test                   # Run all tests
+pnpm test --prefix apps/web # Run web tests only
+pnpm tsc --noEmit -p apps/web  # TypeScript check
+```
+

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCreateRoom, useJoinRoom } from '../hooks/useGameMutations';
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -7,59 +8,40 @@ export default function HomePage() {
   const [nickname, setNickname] = useState('');
   const [mode, setMode] = useState<'home' | 'create' | 'join'>('home');
 
+  const createRoom = useCreateRoom();
+  const joinRoom = useJoinRoom();
+
   const handleCreateRoom = async () => {
     if (!nickname.trim()) return;
 
-    try {
-      // Generate a random room code (in production, this would come from the server)
-      const code = generateRoomCode();
-
-      // Create room via API
-      const response = await fetch(`/party/${code}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'create', nickname }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
+    createRoom.mutate(nickname, {
+      onSuccess: (data) => {
         localStorage.setItem('playerId', data.playerId);
-        localStorage.setItem('roomCode', code);
-        navigate(`/room/${code}`);
+        localStorage.setItem('roomCode', data.roomCode);
+        navigate(`/${data.roomCode}`);
+      },
+      onError: (error) => {
+        console.error('Failed to create room:', error);
       }
-    } catch (error) {
-      console.error('Failed to create room:', error);
-    }
+    });
   };
 
   const handleJoinRoom = async () => {
     if (!nickname.trim() || !joinCode.trim()) return;
 
-    try {
-      const code = joinCode.toUpperCase();
+    const code = joinCode.toUpperCase();
 
-      const response = await fetch(`/party/${code}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'join', nickname }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
+    joinRoom.mutate({ code, nickname }, {
+      onSuccess: (data) => {
         localStorage.setItem('playerId', data.playerId);
         localStorage.setItem('roomCode', code);
-        navigate(`/room/${code}`);
+        navigate(`/${code}`);
+      },
+      onError: (error) => {
+        console.error('Failed to join room:', error);
       }
-    } catch (error) {
-      console.error('Failed to join room:', error);
-    }
+    });
   };
-
-  // Generate random 4-letter room code
-  function generateRoomCode(): string {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-    return Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-  }
 
   if (mode === 'home') {
     return (
@@ -103,10 +85,10 @@ export default function HomePage() {
 
           <button
             onClick={handleCreateRoom}
-            disabled={!nickname.trim()}
+            disabled={!nickname.trim() || createRoom.isPending}
             className="btn disabled:opacity-50"
           >
-            Create
+            {createRoom.isPending ? 'Creating...' : 'Create'}
           </button>
 
           <button
@@ -145,10 +127,10 @@ export default function HomePage() {
 
         <button
           onClick={handleJoinRoom}
-          disabled={!nickname.trim() || joinCode.length !== 4}
+          disabled={!nickname.trim() || joinCode.length !== 4 || joinRoom.isPending}
           className="btn disabled:opacity-50"
         >
-          Join
+          {joinRoom.isPending ? 'Joining...' : 'Join'}
         </button>
 
         <button
