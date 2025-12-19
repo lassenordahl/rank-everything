@@ -1,0 +1,8 @@
+node_modules
+dist
+build
+.partykit
+.wrangler
+playwright-report
+test-results
+pnpm-lock.yaml

@@ -40,7 +40,7 @@ describe('HomePage', () => {
       renderWithProviders(<HomePage />);
 
       expect(screen.getByText('Rank Everything')).toBeInTheDocument();
-      expect(screen.getByText('The ultimate party game for opinions.')).toBeInTheDocument();
+      expect(screen.getByText('A party game for ranking anything')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /create room/i })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /join room/i })).toBeInTheDocument();
     });

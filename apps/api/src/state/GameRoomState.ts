@@ -16,7 +16,12 @@ export class GameRoomState {
     return this.state.connections;
   }
 
-  createRoom(roomId: string, hostPlayerId: string, nickname: string, config: Partial<RoomConfig> = {}) {
+  createRoom(
+    roomId: string,
+    hostPlayerId: string,
+    nickname: string,
+    config: Partial<RoomConfig> = {}
+  ) {
     const defaults: RoomConfig = {
       submissionMode: 'round-robin',
       timerEnabled: true,
@@ -57,14 +62,14 @@ export class GameRoomState {
   }
 
   getPlayer(playerId: string) {
-    return this.state.room?.players.find(p => p.id === playerId);
+    return this.state.room?.players.find((p) => p.id === playerId);
   }
 
   removePlayer(playerId: string) {
     if (!this.state.room) return;
 
     const wasHost = this.state.room.hostPlayerId === playerId;
-    this.state.room.players = this.state.room.players.filter(p => p.id !== playerId);
+    this.state.room.players = this.state.room.players.filter((p) => p.id !== playerId);
 
     if (wasHost && this.state.room.players.length > 0) {
       // Migrate host to the next player (e.g., the one who joined earliest after the host)
@@ -84,16 +89,37 @@ export class GameRoomState {
   // Helper to remove item (useful for tests or moderation)
   removeItem(itemId: string) {
     if (!this.state.room) return;
-    this.state.room.items = this.state.room.items.filter(i => i.id !== itemId);
+    this.state.room.items = this.state.room.items.filter((i) => i.id !== itemId);
     this.state.room.lastActivityAt = Date.now();
   }
 
   updatePlayerConnection(playerId: string, connected: boolean) {
     if (!this.state.room) return;
-    const player = this.state.room.players.find(p => p.id === playerId);
+    const player = this.state.room.players.find((p) => p.id === playerId);
     if (player) {
       player.connected = connected;
     }
+  }
+
+  /**
+   * Migrate host role to another connected player if the current host disconnects.
+   * Returns true if host was migrated.
+   */
+  migrateHostIfNeeded(disconnectedPlayerId: string): boolean {
+    if (!this.state.room) return false;
+    if (this.state.room.hostPlayerId !== disconnectedPlayerId) return false;
+
+    // Find first connected player that isn't the disconnected host
+    const newHost = this.state.room.players.find(
+      (p) => p.id !== disconnectedPlayerId && p.connected
+    );
+
+    if (newHost) {
+      this.state.room.hostPlayerId = newHost.id;
+      this.state.room.lastActivityAt = Date.now();
+      return true;
+    }
+    return false;
   }
 
   startGame() {
@@ -102,23 +128,24 @@ export class GameRoomState {
     this.state.room.currentTurnIndex = 0;
     this.state.room.currentTurnPlayerId = this.state.room.players[0].id;
     this.state.room.timerEndAt = this.state.room.config.timerEnabled
-      ? Date.now() + (this.state.room.config.timerDuration * 1000)
+      ? Date.now() + this.state.room.config.timerDuration * 1000
       : null;
     this.state.room.lastActivityAt = Date.now();
   }
 
-  advanceTurn(): { previousTurnPlayerId: string, nextTurnPlayerId: string } | null {
+  advanceTurn(): { previousTurnPlayerId: string; nextTurnPlayerId: string } | null {
     if (!this.state.room || !this.state.room.currentTurnPlayerId) return null;
 
     // Simple round robin
-    this.state.room.currentTurnIndex = (this.state.room.currentTurnIndex + 1) % this.state.room.players.length;
+    this.state.room.currentTurnIndex =
+      (this.state.room.currentTurnIndex + 1) % this.state.room.players.length;
     const nextPlayer = this.state.room.players[this.state.room.currentTurnIndex];
     if (!nextPlayer) return null; // Should not happen
 
     const previousTurnPlayerId = this.state.room.currentTurnPlayerId;
     this.state.room.currentTurnPlayerId = nextPlayer.id;
     this.state.room.timerEndAt = this.state.room.config.timerEnabled
-      ? Date.now() + (this.state.room.config.timerDuration * 1000)
+      ? Date.now() + this.state.room.config.timerDuration * 1000
       : null;
     this.state.room.lastActivityAt = Date.now();
 

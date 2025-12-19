@@ -2,23 +2,48 @@
   "name": "rank-everything",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
     "test": "turbo run test",
     "test:all": "pnpm test --prefix apps/web && pnpm test --prefix apps/api",
-    "e2e": "pnpm e2e --prefix apps/web",
-    "e2e:prod": "pnpm e2e:prod --prefix apps/web",
-    "lint": "turbo run lint",
+    "e2e": "cd apps/web && npx playwright test --reporter=list",
+    "e2e:prod": "cd apps/web && BASE_URL=https://rank-everything.pages.dev npx playwright test --config=playwright.prod.config.ts --reporter=list",
+    "test:e2e": "turbo run build && npm run e2e",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "clean": "turbo run clean && rm -rf node_modules",
     "deploy": "npm run deploy:api && npm run deploy:web",
     "deploy:api": "npm run deploy --prefix apps/api",
     "deploy:web": "VITE_PARTY_HOST=rank-everything.lassenordahl.partykit.dev npm run build --prefix apps/web && npx wrangler pages deploy apps/web/dist --project-name=rank-everything",
+    "deploy:test": "npm run deploy && npm run e2e:prod",
     "db:migrate": "pnpm --filter @rank-everything/cli run db:migrate",
     "db:seed": "pnpm --filter @rank-everything/cli run db:seed",
-    "db:reset": "pnpm --filter @rank-everything/cli run db:reset"
+    "db:reset": "pnpm --filter @rank-everything/cli run db:reset",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{js,jsx,json,md,css}": [
+      "prettier --write"
+    ]
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@typescript-eslint/eslint-plugin": "^8.50.0",
+    "@typescript-eslint/parser": "^8.50.0",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^16.5.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.7.4",
     "turbo": "^2.0.0",
     "typescript": "^5.3.0"
   },

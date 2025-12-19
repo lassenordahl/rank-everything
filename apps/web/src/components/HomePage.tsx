@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCreateRoom, useJoinRoom } from '../hooks/useGameMutations';
 import { MAX_NICKNAME_LENGTH, ROOM_CODE_LENGTH } from '@rank-everything/validation';
+import { COPY } from '../lib/copy';
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -17,7 +18,7 @@ export default function HomePage() {
     // Check for error param from redirect
     const params = new URLSearchParams(window.location.search);
     if (params.get('error') === 'connection_lost') {
-      setError('Connection lost! Redirected to home.');
+      setError(COPY.errors.connectionLost);
       // Clear URL param without reload
       window.history.replaceState({}, '', '/');
     }
@@ -34,7 +35,7 @@ export default function HomePage() {
       },
       onError: (error) => {
         setError(error.message);
-      }
+      },
     });
   };
 
@@ -43,45 +44,52 @@ export default function HomePage() {
 
     const code = joinCode.toUpperCase();
 
-    joinRoom.mutate({ code, nickname }, {
-      onSuccess: (data) => {
-        localStorage.setItem('playerId', data.playerId);
-        localStorage.setItem('roomCode', code);
-        navigate(`/${code}`);
-      },
-      onError: (error) => {
-        setError(error.message);
+    joinRoom.mutate(
+      { code, nickname },
+      {
+        onSuccess: (data) => {
+          localStorage.setItem('playerId', data.playerId);
+          localStorage.setItem('roomCode', code);
+          navigate(`/${code}`);
+        },
+        onError: (error) => {
+          setError(error.message);
+        },
       }
-    });
+    );
   };
 
   if (mode === 'home') {
     return (
-      <div className="min-h-full flex flex-col items-center justify-center p-6 bg-gradient-to-b from-gray-900 to-black text-white">
-        <h1 className="text-5xl font-extrabold mb-2 tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
-          Rank Everything
-        </h1>
-        <p className="text-gray-400 mb-12 text-lg">The ultimate party game for opinions.</p>
+      <div className="min-h-full flex flex-col items-center justify-center p-6">
+        <h1 className="text-5xl font-bold mb-2">{COPY.appTitle}</h1>
+        <p className="text-gray-500 mb-12">{COPY.appTagline}</p>
 
         {error && (
-            <div className="w-full max-w-xs mb-6 p-4 bg-red-500/10 border border-red-500/50 text-red-500 rounded-lg text-sm text-center shadow-lg backdrop-blur-sm">
-              {error}
-            </div>
+          <div className="w-full max-w-xs mb-6 p-3 border-2 border-red-500 text-red-500 text-sm text-center">
+            {error}
+          </div>
         )}
 
         <div className="flex flex-col gap-4 w-full max-w-xs">
           <button
-            onClick={() => { setError(null); setMode('create'); }}
-            className="btn btn-primary w-full py-4 text-lg shadow-xl shadow-purple-900/20"
+            onClick={() => {
+              setError(null);
+              setMode('create');
+            }}
+            className="btn"
           >
-            Create Room
+            {COPY.buttons.createRoom}
           </button>
 
           <button
-            onClick={() => { setError(null); setMode('join'); }}
-            className="btn btn-outline w-full py-4 text-lg"
+            onClick={() => {
+              setError(null);
+              setMode('join');
+            }}
+            className="btn"
           >
-            Join Room
+            {COPY.buttons.joinRoom}
           </button>
         </div>
       </div>
@@ -90,22 +98,22 @@ export default function HomePage() {
 
   if (mode === 'create') {
     return (
-      <div className="min-h-full flex flex-col items-center justify-center p-6 bg-gray-900 text-white">
-        <h2 className="text-3xl font-bold mb-8">Create Room</h2>
+      <div className="min-h-full flex flex-col items-center justify-center p-6">
+        <h2 className="text-3xl font-bold mb-8">{COPY.labels.createRoomTitle}</h2>
 
         <div className="flex flex-col gap-4 w-full max-w-xs">
           <input
             type="text"
-            placeholder="Your nickname"
+            placeholder={COPY.placeholders.nickname}
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
-            className="input bg-gray-800 border-gray-700 text-white placeholder-gray-500"
+            className="input"
             maxLength={MAX_NICKNAME_LENGTH}
             autoFocus
           />
 
           {error && (
-            <div className="p-3 bg-red-500/10 border border-red-500/50 text-red-500 rounded text-sm text-center">
+            <div className="p-3 border-2 border-red-500 text-red-500 text-sm text-center">
               {error}
             </div>
           )}
@@ -113,16 +121,19 @@ export default function HomePage() {
           <button
             onClick={handleCreateRoom}
             disabled={!nickname.trim() || createRoom.isPending}
-            className="btn btn-primary w-full disabled:opacity-50"
+            className="btn disabled:opacity-50"
           >
-            {createRoom.isPending ? 'Creating...' : 'Create'}
+            {createRoom.isPending ? COPY.pending.creating : COPY.buttons.create}
           </button>
 
           <button
-            onClick={() => { setError(null); setMode('home'); }}
-            className="text-gray-500 hover:text-white transition-colors mt-4"
+            onClick={() => {
+              setError(null);
+              setMode('home');
+            }}
+            className="text-gray-500 hover:text-black transition-colors mt-4"
           >
-            Back
+            {COPY.buttons.back}
           </button>
         </div>
       </div>
@@ -130,31 +141,31 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-full flex flex-col items-center justify-center p-6 bg-gray-900 text-white">
-      <h2 className="text-3xl font-bold mb-8">Join Room</h2>
+    <div className="min-h-full flex flex-col items-center justify-center p-6">
+      <h2 className="text-3xl font-bold mb-8">{COPY.labels.joinRoomTitle}</h2>
 
       <div className="flex flex-col gap-4 w-full max-w-xs">
         <input
           type="text"
-          placeholder="Room code (e.g., ABCD)"
+          placeholder={COPY.placeholders.roomCode}
           value={joinCode}
           onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-          className="input text-center text-2xl tracking-widest uppercase bg-gray-800 border-gray-700 text-white placeholder-gray-500"
+          className="input text-center text-2xl tracking-widest uppercase"
           maxLength={ROOM_CODE_LENGTH}
           autoFocus
         />
 
         <input
           type="text"
-          placeholder="Your nickname"
+          placeholder={COPY.placeholders.nickname}
           value={nickname}
           onChange={(e) => setNickname(e.target.value)}
-          className="input bg-gray-800 border-gray-700 text-white placeholder-gray-500"
+          className="input"
           maxLength={MAX_NICKNAME_LENGTH}
         />
 
         {error && (
-          <div className="p-3 bg-red-500/10 border border-red-500/50 text-red-500 rounded text-sm text-center">
+          <div className="p-3 border-2 border-red-500 text-red-500 text-sm text-center">
             {error}
           </div>
         )}
@@ -162,16 +173,19 @@ export default function HomePage() {
         <button
           onClick={handleJoinRoom}
           disabled={!nickname.trim() || joinCode.length !== ROOM_CODE_LENGTH || joinRoom.isPending}
-          className="btn btn-primary w-full disabled:opacity-50"
+          className="btn disabled:opacity-50"
         >
-          {joinRoom.isPending ? 'Joining...' : 'Join'}
+          {joinRoom.isPending ? COPY.pending.joining : COPY.buttons.join}
         </button>
 
         <button
-          onClick={() => { setError(null); setMode('home'); }}
-          className="text-gray-500 hover:text-white transition-colors mt-4"
+          onClick={() => {
+            setError(null);
+            setMode('home');
+          }}
+          className="text-gray-500 hover:text-black transition-colors mt-4"
         >
-          Back
+          {COPY.buttons.back}
         </button>
       </div>
     </div>

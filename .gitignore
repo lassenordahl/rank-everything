@@ -28,6 +28,7 @@ Thumbs.db
 
 # Testing
 coverage/
+test-results/
 
 # Cloudflare
 .wrangler/

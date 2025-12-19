@@ -1,14 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGameRoom } from '../hooks/useGameRoom';
 import { useJoinRoom, useStartGame } from '../hooks/useGameMutations';
 import { MAX_NICKNAME_LENGTH } from '@rank-everything/validation';
+import { COPY } from '../lib/copy';
 
 export default function RoomLobby() {
   const { code } = useParams<{ code: string }>();
-  // const navigate = useNavigate(); // handled by hook now? Navigate on start handled by hook?
-  // No, useGameRoom handles navigation on 'game_started'.
-  // But wait, explicit navigation actions (like Join onSuccess) might still need it.
   const navigate = useNavigate();
 
   const [nickname, setNickname] = useState('');
@@ -16,7 +14,18 @@ export default function RoomLobby() {
   const [localError, setLocalError] = useState<string | null>(null);
 
   const { room, error: roomError, isHost } = useGameRoom(code || '');
-  console.log(`[RoomLobby] Rendering. Room: ${room?.id}, Players: ${room?.players?.length || 0}`);
+  console.log(
+    `[RoomLobby] Rendering. Room: ${room?.id}, Players: ${room?.players?.length || 0}, Status: ${room?.status}`
+  );
+
+  // Redirect to game if room is already in-progress
+  // This handles the race condition where game starts during page reload
+  useEffect(() => {
+    if (room?.status === 'in-progress' && code) {
+      console.log(`[RoomLobby] Room is in-progress, redirecting to game`);
+      navigate(`/game/${code}`);
+    }
+  }, [room?.status, code, navigate]);
   const joinRoom = useJoinRoom();
   const startGame = useStartGame();
 
@@ -30,7 +39,7 @@ export default function RoomLobby() {
     setLocalError(null);
     startGame.mutate(code, {
       onSuccess: () => navigate(`/game/${code}`),
-      onError: (error) => setLocalError(error.message)
+      onError: (error) => setLocalError(error.message),
     });
   };
 
@@ -38,23 +47,26 @@ export default function RoomLobby() {
     if (!nickname.trim() || !code) return;
     setLocalError(null);
 
-    joinRoom.mutate({ code, nickname }, {
-      onSuccess: (data) => {
-        localStorage.setItem('playerId', data.playerId);
-        localStorage.setItem('roomCode', code);
-        window.location.reload();
-      },
-      onError: (error) => setLocalError(error.message)
-    });
+    joinRoom.mutate(
+      { code, nickname },
+      {
+        onSuccess: (data) => {
+          localStorage.setItem('playerId', data.playerId);
+          localStorage.setItem('roomCode', code);
+          window.location.reload();
+        },
+        onError: (error) => setLocalError(error.message),
+      }
+    );
   };
 
-  const isJoined = room?.players.some(p => p.id === playerId);
+  const isJoined = room?.players.some((p) => p.id === playerId);
 
   // Loading state
   if (!room) {
     return (
       <div className="min-h-full flex items-center justify-center">
-        <p className="text-muted">Loading room...</p>
+        <p className="text-muted">{COPY.pending.loading}</p>
       </div>
     );
   }
@@ -65,15 +77,15 @@ export default function RoomLobby() {
       <div className="min-h-full flex flex-col items-center justify-center p-6">
         <div className="card w-full max-w-sm">
           <div className="text-center mb-6">
-            <p className="text-muted mb-2">Join Room</p>
+            <p className="text-muted mb-2">{COPY.labels.joinRoomTitle}</p>
             <h1 className="text-4xl font-bold tracking-widest mb-4">{code}</h1>
-            <p>Enter your nickname to join</p>
+            <p>{COPY.labels.enterNickname}</p>
           </div>
 
           <div className="flex flex-col gap-4">
             <input
               type="text"
-              placeholder="Your nickname"
+              placeholder={COPY.placeholders.nickname}
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
               className="input"
@@ -88,7 +100,7 @@ export default function RoomLobby() {
               disabled={!nickname.trim() || joinRoom.isPending}
               className="btn disabled:opacity-50"
             >
-              {joinRoom.isPending ? 'Joining...' : 'Join Game'}
+              {joinRoom.isPending ? COPY.pending.joining : COPY.buttons.join}
             </button>
           </div>
         </div>
@@ -99,9 +111,8 @@ export default function RoomLobby() {
   return (
     <div className="min-h-full flex flex-col items-center p-6">
       {/* Room Code */}
-      {/* Room Code */}
       <div className="text-center mb-8">
-        <p className="text-muted mb-2">Room Code</p>
+        <p className="text-muted mb-2">{COPY.labels.roomCode}</p>
         <h1 className="text-6xl font-bold tracking-widest mb-4">{code}</h1>
         <button
           onClick={() => {
@@ -111,7 +122,7 @@ export default function RoomLobby() {
           }}
           className="btn btn-secondary text-sm py-2 px-4"
         >
-          {copied ? '✅  Copied Link!' : '🔗  Copy Link'}
+          {copied ? `✅  ${COPY.buttons.copiedLink}` : `🔗  ${COPY.buttons.copyLink}`}
         </button>
       </div>
 
@@ -123,7 +134,9 @@ export default function RoomLobby() {
 
       {/* Players */}
       <div className="card w-full max-w-sm mb-8">
-        <h2 className="font-bold mb-4">Players ({room?.players.length || 0})</h2>
+        <h2 className="font-bold mb-4">
+          {COPY.labels.players} ({room?.players.length || 0})
+        </h2>
         <ul className="space-y-2">
           {room?.players.map((player) => (
             <li key={player.id} className="flex items-center gap-2">
@@ -132,7 +145,7 @@ export default function RoomLobby() {
               </span>
               <span>{player.nickname}</span>
               {player.id === room.hostPlayerId && (
-                <span className="text-muted text-sm">(host)</span>
+                <span className="text-muted text-sm">{COPY.labels.host}</span>
               )}
             </li>
           ))}
@@ -142,16 +155,16 @@ export default function RoomLobby() {
       {/* Settings (host only) */}
       {isHost && (
         <div className="card w-full max-w-sm mb-8">
-          <h2 className="font-bold mb-4">Settings</h2>
+          <h2 className="font-bold mb-4">{COPY.labels.settings}</h2>
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span>Mode:</span>
+              <span>{COPY.labels.mode}</span>
               <span>{room.config.submissionMode}</span>
             </div>
             <div className="flex justify-between">
-              <span>Timer:</span>
+              <span>{COPY.labels.timer}</span>
               <span>
-                {room.config.timerEnabled ? `${room.config.timerDuration}s` : 'Off'}
+                {room.config.timerEnabled ? `${room.config.timerDuration}s` : COPY.labels.timerOff}
               </span>
             </div>
           </div>
@@ -165,13 +178,15 @@ export default function RoomLobby() {
           disabled={!(room && room.players.length >= 1) || startGame.isPending}
           className="btn disabled:opacity-50"
         >
-          {startGame.isPending ? 'Starting...' : (room && room.players.length >= 1 ? 'Start Game' : 'Need 1+ Players')}
+          {startGame.isPending
+            ? COPY.pending.starting
+            : room && room.players.length >= 1
+              ? COPY.buttons.startGame
+              : COPY.labels.needPlayers}
         </button>
       )}
 
-      {!isHost && (
-        <p className="text-muted">Waiting for host to start...</p>
-      )}
+      {!isHost && <p className="text-muted">{COPY.labels.waitingForHost}</p>}
     </div>
   );
 }

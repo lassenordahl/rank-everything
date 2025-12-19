@@ -18,7 +18,7 @@ import {
   createRoomSchema,
   joinRoomSchema,
   submitItemSchema,
-  rankItemSchema
+  rankItemSchema,
 } from '@rank-everything/validation';
 
 // Generate unique IDs
@@ -26,10 +26,15 @@ function generateId(): string {
   return Math.random().toString(36).substring(2, 15);
 }
 
+// Grace period before removing disconnected players (60 seconds)
+const DISCONNECT_GRACE_PERIOD_MS = 60 * 1000;
+
 export default class GameRoom implements Party.Server {
   // Use the extracted state manager
   private gameState: GameRoomState;
   private apiUrl = 'http://localhost:8787'; // Worker URL
+  // Track pending disconnect timeouts for grace period
+  private disconnectTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
 
   constructor(readonly room: Party.Room) {
     this.gameState = new GameRoomState({
@@ -82,18 +87,13 @@ export default class GameRoom implements Party.Server {
       try {
         // Clean URL to handle trailing slashes roughly
         if (url.pathname.endsWith(this.room.id) || url.pathname.endsWith(this.room.id + '/')) {
-          const body = await req.clone().json() as { action: string };
+          const body = (await req.clone().json()) as { action: string };
 
           if (body.action === 'create') {
-            const response = await handleCreateRoom(
-              req,
-              this.room.id,
-              this.gameState,
-              corsHeaders
-            );
+            const response = await handleCreateRoom(req, this.room.id, this.gameState, corsHeaders);
             // Persist state
             if (response.ok && this.gameState.room) {
-                await this.room.storage.put('room', this.gameState.room);
+              await this.room.storage.put('room', this.gameState.room);
             }
             return response;
           }
@@ -108,7 +108,7 @@ export default class GameRoom implements Party.Server {
             // Persist state (player added)
             // Ideally we optimize persistence but correct > fast for now
             if (response.ok && this.gameState.room) {
-               await this.room.storage.put('room', this.gameState.room);
+              await this.room.storage.put('room', this.gameState.room);
             }
             return response;
           }
@@ -120,9 +120,9 @@ export default class GameRoom implements Party.Server {
               (event) => this.broadcast(event),
               corsHeaders
             );
-             // Persist state (status changed)
+            // Persist state (status changed)
             if (response.ok && this.gameState.room) {
-               await this.room.storage.put('room', this.gameState.room);
+              await this.room.storage.put('room', this.gameState.room);
             }
             return response;
           }
@@ -131,7 +131,7 @@ export default class GameRoom implements Party.Server {
         console.error('Error handling request:', e);
         return new Response(JSON.stringify({ error: 'Internal server error' }), {
           status: 500,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders }
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
       }
     }
@@ -172,7 +172,23 @@ export default class GameRoom implements Party.Server {
             this.saveToGlobalPool.bind(this),
             this.fetchEmoji.bind(this)
           );
-          if (this.gameState.room) await this.room.storage.put('room', this.gameState.room);
+          // Advance turn after item submission in round-robin mode
+          if (this.gameState.room?.config.submissionMode === 'round-robin') {
+            const result = this.gameState.advanceTurn();
+            if (result) {
+              this.broadcast({
+                type: 'turn_changed',
+                playerId: result.nextTurnPlayerId,
+                timerEndAt: this.gameState.room?.timerEndAt || null,
+              });
+            }
+          }
+          // Also broadcast room_updated so clients get full state (items list)
+          // This ensures clients don't miss item_submitted due to message race conditions
+          if (this.gameState.room) {
+            this.broadcast({ type: 'room_updated', room: this.gameState.room });
+            await this.room.storage.put('room', this.gameState.room);
+          }
           break;
 
         case 'rank_item':
@@ -183,15 +199,15 @@ export default class GameRoom implements Party.Server {
         case 'skip_turn':
           const turnChanged = handleSkipTurn(sender, this.gameState, (e) => this.broadcast(e));
           if (turnChanged) {
-             const result = this.gameState.advanceTurn();
-             if (result) {
-                 this.broadcast({
-                     type: 'turn_changed',
-                     playerId: result.nextTurnPlayerId,
-                     timerEndAt: this.gameState.room?.timerEndAt || null
-                 });
-             }
-             if (this.gameState.room) await this.room.storage.put('room', this.gameState.room);
+            const result = this.gameState.advanceTurn();
+            if (result) {
+              this.broadcast({
+                type: 'turn_changed',
+                playerId: result.nextTurnPlayerId,
+                timerEndAt: this.gameState.room?.timerEndAt || null,
+              });
+            }
+            if (this.gameState.room) await this.room.storage.put('room', this.gameState.room);
           }
           break;
 
@@ -218,7 +234,7 @@ export default class GameRoom implements Party.Server {
       });
 
       if (response.ok) {
-        const data = await response.json() as { emoji: string };
+        const data = (await response.json()) as { emoji: string };
         return data.emoji || '🎲';
       }
     } catch (error) {
@@ -246,99 +262,96 @@ export default class GameRoom implements Party.Server {
     const player = this.gameState.getPlayer(playerId);
 
     if (player) {
+      // Cancel any pending disconnect timeout
+      const pendingTimeout = this.disconnectTimeouts.get(playerId);
+      if (pendingTimeout) {
+        console.log(`Player ${playerId} reconnected. Canceling grace period timeout.`);
+        clearTimeout(pendingTimeout);
+        this.disconnectTimeouts.delete(playerId);
+      }
+
       // Update connection mapping
       this.gameState.connections.set(sender.id, playerId);
       this.gameState.updatePlayerConnection(playerId, true);
 
       // Send current room state to reconnecting player
-      sender.send(JSON.stringify({
-        type: 'room_updated',
-        room: this.gameState.room,
-      }));
+      sender.send(
+        JSON.stringify({
+          type: 'room_updated',
+          room: this.gameState.room,
+        })
+      );
 
       // Notify others
       this.broadcast({ type: 'player_reconnected', playerId });
       if (this.gameState.room) await this.room.storage.put('room', this.gameState.room);
     } else {
-      sender.send(JSON.stringify({ type: 'error', message: 'Player not found', code: 'PLAYER_NOT_FOUND' }));
+      sender.send(
+        JSON.stringify({ type: 'error', message: 'Player not found', code: 'PLAYER_NOT_FOUND' })
+      );
     }
   }
 
   async onClose(conn: Party.Connection) {
     const playerId = this.gameState.connections.get(conn.id);
     if (playerId) {
-      // If game hasn't started, remove the player completely
+      // Always mark player as disconnected first
+      this.gameState.updatePlayerConnection(playerId, false);
+      this.gameState.connections.delete(conn.id);
+
+      // Notify others of disconnect
+      this.broadcast({ type: 'player_left', playerId });
+
+      // Immediately migrate host if the disconnected player was the host
+      const hostMigrated = this.gameState.migrateHostIfNeeded(playerId);
+      if (hostMigrated && this.gameState.room) {
+        console.log(`Host migrated to: ${this.gameState.room.hostPlayerId}`);
+        this.broadcast({ type: 'room_updated', room: this.gameState.room });
+      }
+
+      // If game hasn't started (lobby), schedule delayed removal with grace period
+      // This allows users to switch apps (e.g., to send the room link) without losing the room
       if (this.gameState.room?.status === 'lobby') {
-        this.gameState.removePlayer(playerId);
-        this.gameState.connections.delete(conn.id);
+        console.log(
+          `Player ${playerId} disconnected in lobby. Starting ${DISCONNECT_GRACE_PERIOD_MS / 1000}s grace period.`
+        );
 
-        // Broadcast updated room state implies removal if player list changes
-        // But broadcast event 'player_left' is usually just a notification
-        // We should send 'room_updated' to ensure clients sync the list removal
-        // Or 'player_left' allows clients to remove?
-        // Let's send room_updated to be safe, as player_left might be interpreted as "mark disconnected"
-        this.broadcast({ type: 'room_updated', room: this.gameState.room! });
-      } else {
-        // Game started, just mark as disconnected
-        this.gameState.updatePlayerConnection(playerId, false);
-        this.broadcast({ type: 'player_left', playerId });
+        // Cancel any existing timeout for this player
+        const existingTimeout = this.disconnectTimeouts.get(playerId);
+        if (existingTimeout) {
+          clearTimeout(existingTimeout);
+        }
+
+        // Schedule removal after grace period
+        const timeout = setTimeout(async () => {
+          // Check if player is still disconnected (they might have reconnected)
+          const player = this.gameState.getPlayer(playerId);
+          if (player && !player.connected) {
+            console.log(`Grace period expired for ${playerId}. Removing from room.`);
+            this.gameState.removePlayer(playerId);
+
+            // Broadcast room update to reflect removal
+            if (this.gameState.room) {
+              this.broadcast({ type: 'room_updated', room: this.gameState.room });
+            }
+
+            // Check if room is now empty
+            if (this.gameState.room && this.gameState.room.players.length === 0) {
+              console.log(`Room ${this.room.id} empty after grace period. Deleting.`);
+              this.gameState.reset();
+              await this.room.storage.delete('room');
+            } else if (this.gameState.room) {
+              await this.room.storage.put('room', this.gameState.room);
+            }
+          }
+
+          this.disconnectTimeouts.delete(playerId);
+        }, DISCONNECT_GRACE_PERIOD_MS);
+
+        this.disconnectTimeouts.set(playerId, timeout);
       }
 
-      // Cleanup connection map if just marking disconnected? No, we need it for reconnect.
-      // But if removed, we deleted it above.
-
-      if (!this.gameState.connections.has(conn.id)) {
-          // Already deleted (lobby case)
-      } else {
-          // Keep mapping for reconnect (game case)
-          this.gameState.connections.delete(conn.id);
-          // WAIT! If we delete the mapping, how do we know who they were when they reconnect?
-          // Reconnect logic relies on client sending "I was player X", and server validating?
-          // handleReconnect(playerId, sender) trusts the playerId sent by client?
-          // handleReconnect logic: `const player = this.gameState.getPlayer(playerId)` -> if exists, rebind.
-          // So we DON'T need the old connection mapping. We just need the player entity to exist.
-          // So deleting `conn.id` from `connections` is correct in ALL cases.
-      }
-
-      // Actually, looking at code: `this.gameState.connections.delete(conn.id);` was unconditional.
-      // So yes, we delete the *socket connection ID* mapping.
-      // The player entity remains in `state.room.players` (unless lobby removal).
-
-
-      // Check if room is empty (no players left at all)
-      if (this.gameState.room && this.gameState.room.players.length === 0) {
-          console.log(`Room ${this.room.id} empty, deleting.`);
-          this.gameState.reset();
-          await this.room.storage.delete('room'); // Clear persistence
-          return;
-      }
-
-      // Also check if room is "effectively" empty for game state?
-      // User said: "If they are the only user in the room, close out the room."
-      // This implies if 1 user is left? Or if 0 users? "If they [the host] leaves... If they are the only user... close out".
-      // This likely means: If the user who just left was the *last* user.
-      // My check `players.length === 0` covers this (after removal).
-      // But if it's In-Game, `removePlayer` isn't called, just disconnect.
-      // So `players.length` is still > 0.
-      // User said "If they are the only user in the room, close out the room."
-      // If I am playing a game and my opponent disconnects, I shouldn't be kicked out immediately.
-      // But if I leave (disconnect) and I was the only one connected?
-      // "If they are the only user in the room" -> singular.
-      // Maybe they mean if 1 person created a room, then left. (Lobby).
-      // Or if everyone left.
-      // I'll stick to: If 0 players remain in Lobby -> Delete.
-      // If In-Game? We shouldn't delete immediately on disconnect usually.
-      // But if all players disconnect?
-
-      // Let's stick to the explicit instruction: "If they are the only user in the room, close out the room."
-      // If I am the only user, and I leave -> 0 users.
-      // So checking `players.length === 0` (for Lobby) covers "I was the only user and I left".
-
-      // What if In-Game and everyone disconnects?
-      // Since `removePlayer` isn't called, `players.length` > 0.
-      // We persist state. This allows reconnect. This is correct behavior for games.
-      // The user likely meant: "If I create a room (1 user), and leave, delete it." -> Handled.
-
+      // Update room state (player marked as disconnected)
       if (this.gameState.room) await this.room.storage.put('room', this.gameState.room);
     }
   }

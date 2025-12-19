@@ -7,16 +7,17 @@ A real-time multiplayer party game where players rank items 1-10. Simple concept
 ## Project Approach
 
 This repository follows a **specification-first development approach** with **CLI-driven autonomous development**. The goal is:
+
 1. Create detailed specs before implementation
 2. Build tooling that enables Claude Code to develop, test, and iterate autonomously
 3. Achieve high-quality, one-shot builds with minimal manual intervention
 
 ## Documentation Index
 
-| Document | Purpose |
-|----------|---------|
+| Document                                       | Purpose                                                        |
+| ---------------------------------------------- | -------------------------------------------------------------- |
 | [specs/PROJECT_SPEC.md](specs/PROJECT_SPEC.md) | Full product specification - features, flows, data models, API |
-| [specs/CLI_SPEC.md](specs/CLI_SPEC.md) | CLI tool for autonomous development, testing, deployment |
+| [specs/CLI_SPEC.md](specs/CLI_SPEC.md)         | CLI tool for autonomous development, testing, deployment       |
 
 ## Tech Stack
 
@@ -68,6 +69,7 @@ See [CLI_SPEC.md](specs/CLI_SPEC.md) for full command reference.
 ## Working with This Project
 
 ### For Claude Code:
+
 1. **Before implementing**: Read the relevant section of PROJECT_SPEC.md
 2. **After implementing**: Run `rank test` to verify
 3. **Test edge cases**: Use `rank db:seed --scenario <name>`
@@ -75,6 +77,7 @@ See [CLI_SPEC.md](specs/CLI_SPEC.md) for full command reference.
 5. **Debug**: Use `rank db:inspect` and `rank room:state`
 
 ### Key Principles:
+
 - PROJECT_SPEC.md is the source of truth
 - Run tests before considering a feature complete
 - Use structured output (`--json`) for programmatic checks
@@ -85,6 +88,7 @@ See [CLI_SPEC.md](specs/CLI_SPEC.md) for full command reference.
 **Phase**: Core Implementation Complete, Ready for Testing
 
 **Completed:**
+
 - [x] Product specification (PROJECT_SPEC.md)
 - [x] CLI specification (CLI_SPEC.md)
 - [x] Monorepo structure (Turborepo + pnpm)
@@ -99,6 +103,7 @@ See [CLI_SPEC.md](specs/CLI_SPEC.md) for full command reference.
 - [x] Screenshot functionality (html2canvas)
 
 **Next Steps:**
+
 1. Create D1 database with wrangler (`wrangler d1 create rank-everything-db`)
 2. Run migrations (`wrangler d1 execute`)
 3. Test locally: `pnpm rank dev`
@@ -108,6 +113,7 @@ See [CLI_SPEC.md](specs/CLI_SPEC.md) for full command reference.
 ## Quick Reference
 
 **V1 Features:**
+
 - Custom rooms with 4-letter codes
 - Round-robin or host-only submission modes
 - 60s configurable timer
@@ -118,6 +124,7 @@ See [CLI_SPEC.md](specs/CLI_SPEC.md) for full command reference.
 - Screenshot sharing at reveal
 
 **Not in V1:**
+
 - Daily challenge mode
 - Animations
 - User accounts
@@ -130,11 +137,13 @@ See [CLI_SPEC.md](specs/CLI_SPEC.md) for full command reference.
 **Before completing ANY task that modifies code:**
 
 1. **Run TypeScript Check**:
+
    ```bash
    pnpm tsc --noEmit -p apps/web
    ```
 
 2. **Run Tests**:
+
    ```bash
    pnpm test --prefix apps/web  # 76 tests
    pnpm test --prefix apps/api  # 21 tests
@@ -157,7 +166,63 @@ See [CLI_SPEC.md](specs/CLI_SPEC.md) for full command reference.
 1. **Missing imports**: Always add imports when using new components/hooks
 2. **Missing state declarations**: When using `setX()`, ensure `const [x, setX] = useState()` exists
 3. **Breaking changes to shared types**: Check all consumers when modifying types
-4. **Environment variables**: Ensure `.env` at monorepo root is properly configured
+
+### Shared Copy/Text Strings
+
+**IMPORTANT**: All UI text (button labels, placeholders, error messages) MUST use the shared copy file:
+
+```
+apps/web/src/lib/copy.ts
+```
+
+**Why:**
+
+- E2E tests use these same constants for selectors
+- Prevents button text mismatches between UI and tests
+- Single source of truth for all user-facing text
+
+**Usage in components:**
+
+```typescript
+import { COPY } from '../lib/copy';
+
+<button>{COPY.buttons.join}</button>
+<input placeholder={COPY.placeholders.nickname} />
+```
+
+**Usage in tests:**
+
+```typescript
+import { COPY } from '../src/lib/copy';
+
+await page.getByRole('button', { name: COPY.buttons.join }).click();
+await page.getByPlaceholder(COPY.placeholders.nickname).fill('Test');
+```
+
+### E2E Testing Workflow
+
+**IMPORTANT FOR CLAUDE:** When E2E tests need to be run, ask the user to run them and provide the output. Only run tests yourself if the user explicitly asks you to "run and fix" them.
+
+**Quick Commands (from monorepo root):**
+
+```bash
+# Local E2E tests (requires dev servers running: pnpm dev)
+cd apps/web && npx playwright test --reporter=list
+
+# Deploy to production AND run production smoke tests
+npm run deploy:test
+
+# Or separately:
+npm run deploy       # Deploy API + Web to production
+npm run e2e:prod     # Run production smoke tests
+```
+
+**Manual steps if needed:**
+
+1. Start local dev servers: `pnpm dev`
+2. Run local tests: `cd apps/web && npx playwright test --reporter=list`
+3. Deploy: `npm run deploy`
+4. Run prod tests: `npm run e2e:prod`
 
 ---
 
@@ -209,23 +274,23 @@ apps/api/src/
 
 ### Testing Tools
 
-| Tool | Purpose | Location |
-|------|---------|----------|
-| Vitest | Test runner | All packages |
-| Testing Library | React component testing | `apps/web` |
-| happy-dom | DOM environment for tests | `apps/web` |
-| GameSimulator | Full game simulation | `apps/web/src/test/` |
-| MSW | API mocking (optional) | `apps/web` |
+| Tool            | Purpose                   | Location             |
+| --------------- | ------------------------- | -------------------- |
+| Vitest          | Test runner               | All packages         |
+| Testing Library | React component testing   | `apps/web`           |
+| happy-dom       | DOM environment for tests | `apps/web`           |
+| GameSimulator   | Full game simulation      | `apps/web/src/test/` |
+| MSW             | API mocking (optional)    | `apps/web`           |
 
 ### When to Write Which Test Type
 
-| Scenario | Test Type | Example |
-|----------|-----------|---------|
-| Logic without UI | Unit test | API client methods |
-| React hooks | Hook test | `useGameMutations` |
-| UI components | Component test | `HomePage`, `RoomLobby` |
-| Multi-player game flow | Simulation test | `GameSimulator` |
-| Real browser + server | E2E test | Playwright (when added) |
+| Scenario               | Test Type       | Example                 |
+| ---------------------- | --------------- | ----------------------- |
+| Logic without UI       | Unit test       | API client methods      |
+| React hooks            | Hook test       | `useGameMutations`      |
+| UI components          | Component test  | `HomePage`, `RoomLobby` |
+| Multi-player game flow | Simulation test | `GameSimulator`         |
+| Real browser + server  | E2E test        | Playwright (when added) |
 
 ### GameSimulator Usage
 
@@ -261,6 +326,7 @@ npx playwright install
 ```
 
 **E2E Test Scenarios:**
+
 1. Single player creates room, plays full game
 2. Two players in different browser contexts join same room
 3. Host starts game, all players see real-time updates
@@ -325,6 +391,7 @@ BASE_URL=https://rank-everything.pages.dev pnpm e2e:prod:headed --prefix apps/we
 ## Error Recovery
 
 If you introduce a bug:
+
 1. Immediately check the error message and stack trace
 2. View the relevant file at the line number mentioned
 3. Fix the issue before proceeding with other work
