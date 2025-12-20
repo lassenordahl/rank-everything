@@ -62,7 +62,8 @@ export const RankingList = memo(function RankingList({
 
   // Calculate comparison diff for each item
   // diff = viewer's rank - this player's rank
-  // Positive means viewer ranked it higher (better), negative means lower
+  // Positive means this player ranked it higher (better) than the viewer
+  // Negative means this player ranked it lower (worse) than the viewer
   const getComparisonDiff = (itemId: string | undefined): number | null => {
     if (!compareToRankings || !itemId) return null;
 
@@ -71,15 +72,17 @@ export const RankingList = memo(function RankingList({
 
     if (thisRank === undefined || viewerRank === undefined) return null;
 
-    // If viewer ranked it #1 and this player ranked it #3, diff is 3-1 = +2 (viewer ranked higher)
-    // If viewer ranked it #3 and this player ranked it #1, diff is 1-3 = -2 (viewer ranked lower)
-    return thisRank - viewerRank;
+    // If viewer ranked it #5 and this player ranked it #3, diff is 5-3 = +2 (player ranked higher)
+    // If viewer ranked it #3 and this player ranked it #5, diff is 3-5 = -2 (player ranked lower)
+    return viewerRank - thisRank;
   };
 
   const slots = Array.from({ length: itemsPerGame }, (_, i) => i + 1);
 
   return (
-    <div className={`border-2 border-black bg-white card-shadow w-full max-w-sm mx-auto ${className}`.trim()}>
+    <div
+      className={`border-2 border-black bg-white card-shadow w-full max-w-sm mx-auto ${className}`.trim()}
+    >
       {showHeader && (
         <div className="border-b-2 border-black px-3 py-2">
           <h3 className="font-bold text-xs uppercase tracking-wide">{headerTitle}</h3>

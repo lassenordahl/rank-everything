@@ -106,7 +106,7 @@ export default function RevealScreen({ room, playerId, isHost, sendMessage }: Re
       finalCanvas.width = imgWidth;
       finalCanvas.height = imgHeight;
       const ctx = finalCanvas.getContext('2d');
-      if (!ctx) return canvas;
+      if (!ctx) return;
 
       // Layer 1: Gradient background
       const bgCanvas = generateBackground(imgWidth, imgHeight);

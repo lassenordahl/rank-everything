@@ -24,8 +24,8 @@ export interface RankingSlotProps {
   className?: string;
   /**
    * Comparison diff: how many slots different from viewer's ranking.
-   * Positive = you ranked this higher (green ↑)
-   * Negative = you ranked this lower (red ↓)
+   * Positive = this player ranked this higher than viewer (green ↑)
+   * Negative = this player ranked this lower than viewer (red ↓)
    * Zero/undefined = same position or no comparison
    */
   comparisonDiff?: number | null;
@@ -71,10 +71,7 @@ export const RankingSlot = memo(function RankingSlot({
       <span
         className={`
           text-xs font-bold px-1.5 py-0.5 rounded flex-shrink-0 inline-flex items-center gap-0.5
-          ${isHigher
-            ? 'text-green-600 bg-green-100'
-            : 'text-red-500 bg-red-100'
-          }
+          ${isHigher ? 'text-green-600 bg-green-100' : 'text-red-500 bg-red-100'}
         `}
       >
         <span>{isHigher ? `+${absValue}` : `-${absValue}`}</span>
@@ -102,9 +99,7 @@ export const RankingSlot = memo(function RankingSlot({
           <span className="font-medium break-words leading-tight">{item.text}</span>
           <div className="ml-auto flex items-baseline gap-1.5 flex-shrink-0">
             {renderComparisonBadge()}
-            {item.emoji && (
-              <span className="text-lg leading-none">{item.emoji}</span>
-            )}
+            {item.emoji && <span className="text-lg leading-none">{item.emoji}</span>}
           </div>
         </div>
       ) : (
