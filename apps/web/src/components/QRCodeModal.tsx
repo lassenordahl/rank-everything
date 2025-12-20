@@ -1,14 +1,14 @@
 /**
  * QRCodeModal Component
  *
- * Full-screen modal that displays a QR code for easy room sharing.
- * Uses the current window.location.origin for URL compatibility across all deployments.
+ * Full-screen view that displays a QR code for easy room sharing.
+ * Uses the animated background for visual consistency with the rest of the app.
  */
 
 import { useState, useEffect } from 'react';
 import { generateQRCode } from '@rank-everything/qrcode';
 import { COPY } from '../lib/copy';
-import { componentClasses } from '../lib/design-tokens';
+import { AnimatedBackground } from './AnimatedBackground';
 
 interface QRCodeModalProps {
   roomCode: string;
@@ -48,16 +48,20 @@ export default function QRCodeModal({ roomCode, isOpen, onClose }: QRCodeModalPr
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-      <div className="flex flex-col items-center justify-center p-8 max-w-lg w-full">
-        {/* Room Code */}
-        <h1 className="text-5xl font-bold tracking-widest text-white mb-4">{roomCode}</h1>
+    <div className="fixed inset-0 z-50 bg-white">
+      {/* Animated gradient background */}
+      <AnimatedBackground />
+
+      {/* Content */}
+      <div className="relative z-10 flex flex-col items-center justify-center min-h-full p-8 gap-6">
+        {/* Room Code - matches homepage display font */}
+        <h1 className="text-5xl font-bold tracking-widest text-black font-mono">{roomCode}</h1>
 
         {/* Label */}
-        <p className="text-white/70 text-lg mb-6">{COPY.labels.scanToJoin}</p>
+        <p className="text-black/70 text-lg font-medium">{COPY.labels.scanToJoin}</p>
 
-        {/* QR Code */}
-        <div className="bg-white p-4 border-2 border-black w-full max-w-[400px] aspect-square flex items-center justify-center">
+        {/* QR Code with inset highlight */}
+        <div className="bg-white p-4 border-2 border-black w-full max-w-[320px] aspect-square flex items-center justify-center inset-highlight shadow-[4px_4px_0_0_#000] card-shadow">
           {isLoading ? (
             <div className="w-full h-full flex items-center justify-center">
               <div className="animate-pulse text-gray-400">Generating...</div>
@@ -75,11 +79,8 @@ export default function QRCodeModal({ roomCode, isOpen, onClose }: QRCodeModalPr
           )}
         </div>
 
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className={`${componentClasses.buttonSecondary} mt-8 border-white`}
-        >
+        {/* Close Button with inset */}
+        <button onClick={onClose} className="btn-primary mt-4 inset-shadow">
           {COPY.buttons.close}
         </button>
       </div>

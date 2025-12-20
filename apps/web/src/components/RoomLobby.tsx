@@ -6,7 +6,7 @@ import { useJoinRoom, useStartGame } from '../hooks/useGameMutations';
 import { MAX_NICKNAME_LENGTH } from '@rank-everything/validation';
 import { COPY } from '../lib/copy';
 import { transitions } from '../lib/design-tokens';
-import { PlayerList, RoomCodeDisplay, Input } from './ui';
+import { PlayerList, RoomCodeDisplay, Input, LoadingSpinner } from './ui';
 import QRCodeModal from './QRCodeModal';
 import { AnimatedBackground } from './AnimatedBackground';
 
@@ -23,21 +23,22 @@ export default function RoomLobby() {
     `[RoomLobby] Rendering. Room: ${room?.id}, Players: ${room?.players?.length || 0}, Status: ${room?.status}`
   );
 
+  const playerId = localStorage.getItem('playerId');
+  const isJoined = room?.players?.some((p) => p.id === playerId);
+
   // Redirect to game if room is already in-progress
   // This handles the race condition where game starts during page reload
   useEffect(() => {
-    if (room?.status === 'in-progress' && code) {
-      console.log(`[RoomLobby] Room is in-progress, redirecting to game`);
+    // Only redirect if we are already part of the game
+    // Otherwise, stay here to show the Join Form (late join)
+    if (room?.status === 'in-progress' && code && isJoined) {
+      console.log(`[RoomLobby] Room is in-progress and player joined, redirecting to game`);
       navigate(`/game/${code}`);
     }
-  }, [room?.status, code, navigate]);
+  }, [room?.status, code, navigate, isJoined]);
+
   const joinRoom = useJoinRoom();
   const startGame = useStartGame();
-
-  const error = localError || (roomError?.message ?? null);
-  const playerId = localStorage.getItem('playerId');
-
-  // Effects removed!
 
   const handleStartGame = async () => {
     if (!code) return;
@@ -65,22 +66,14 @@ export default function RoomLobby() {
     );
   };
 
-  const isJoined = room?.players.some((p) => p.id === playerId);
+  const error = localError || (roomError?.message ?? null);
 
   // Loading state
   if (!room) {
     return (
       <>
         <AnimatedBackground />
-        <div className="relative z-10 min-h-full flex items-center justify-center">
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-black/70 font-medium"
-          >
-            {COPY.pending.loading}
-          </motion.p>
-        </div>
+        <LoadingSpinner />
       </>
     );
   }
@@ -92,7 +85,6 @@ export default function RoomLobby() {
         <AnimatedBackground />
         <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6">
           <motion.div
-            layout
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={transitions.default}
@@ -121,7 +113,6 @@ export default function RoomLobby() {
               <AnimatePresence>
                 {error && (
                   <motion.div
-                    layout
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 10 }}
@@ -163,7 +154,6 @@ export default function RoomLobby() {
         <AnimatePresence>
           {error && (
             <motion.div
-              layout
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
@@ -260,6 +250,27 @@ export default function RoomLobby() {
                   <option value="host-only">{COPY.settings.hostOnly}</option>
                 </select>
               </div>
+
+              {/* List Size (Items Per Game) */}
+              <div className="flex justify-between items-center">
+                <span>{COPY.settings.listSize}</span>
+                <select
+                  value={room.config.itemsPerGame}
+                  onChange={(e) => {
+                    sendMessage(
+                      JSON.stringify({
+                        type: 'update_config',
+                        config: { itemsPerGame: parseInt(e.target.value, 10) },
+                      })
+                    );
+                  }}
+                  className="px-2 py-1 border-2 border-black text-sm rounded-none bg-white"
+                >
+                  <option value={3}>3 Items</option>
+                  <option value={5}>5 Items</option>
+                  <option value={10}>10 Items</option>
+                </select>
+              </div>
             </div>
           </motion.div>
         )}
@@ -289,12 +300,30 @@ export default function RoomLobby() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="badge-waiting"
+            className="badge-waiting inset-shadow"
           >
             <span className="animate-pulse">●</span>
             {COPY.labels.waitingForHost}
           </motion.div>
         )}
+
+        {/* Back Button - below start game */}
+        <motion.button
+          onClick={() => {
+            localStorage.removeItem('playerId');
+            localStorage.removeItem('roomCode');
+            navigate('/');
+          }}
+          className="btn-secondary text-sm flex items-center justify-center gap-3"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          transition={{ delay: 0.4 }}
+        >
+          <span>←</span>
+          <span>Leave Room</span>
+        </motion.button>
 
         <QRCodeModal
           roomCode={code || ''}

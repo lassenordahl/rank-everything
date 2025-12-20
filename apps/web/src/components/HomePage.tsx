@@ -70,13 +70,9 @@ export default function HomePage() {
         <div className="w-full max-w-sm">
           {/* Main Content Area - Open Layout */}
           <motion.div
-            layout
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{
-              ...transitions.spring,
-              layout: { duration: 0.3, type: 'spring', stiffness: 300, damping: 25 },
-            }}
+            transition={transitions.spring}
             className="relative"
           >
             <AnimatePresence mode="wait">
@@ -90,10 +86,7 @@ export default function HomePage() {
                   className="flex flex-col gap-12"
                 >
                   <div className="text-center">
-                    <motion.h1
-                      className="text-6xl sm:text-7xl font-black mb-1 tracking-tighter uppercase leading-[0.8]"
-                      layoutId="app-title"
-                    >
+                    <motion.h1 className="text-6xl sm:text-7xl font-black mb-1 tracking-tighter uppercase leading-[0.8]">
                       RANK
                       <br />
                       EVERYTHING

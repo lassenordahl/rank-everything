@@ -1,6 +1,5 @@
-import { motion } from 'framer-motion';
+import { useMemo } from 'react';
 import { colors } from '../lib/design-tokens';
-import { useEffect, useRef, useState, useMemo } from 'react';
 
 // Emoji pool - these tie into the game's emoji categorization feature
 const EMOJI_POOL = [
@@ -54,7 +53,6 @@ interface FloatingEmoji {
   size: number;
   duration: number;
   delay: number;
-  rotation: number;
 }
 
 function generateEmojis(count: number): FloatingEmoji[] {
@@ -66,218 +64,128 @@ function generateEmojis(count: number): FloatingEmoji[] {
       x: Math.random() * 100,
       y: Math.random() * 100,
       size: 20 + Math.random() * 30,
-      duration: 20 + Math.random() * 40,
-      delay: Math.random() * -30,
-      rotation: Math.random() * 360,
+      duration: 15 + Math.random() * 20, // Slower animations
+      delay: Math.random() * -15,
     };
   });
 }
 
-function NoiseCanvas() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    let animationFrameId: number;
-    let frameCount = 0;
-
-    const resize = () => {
-      // Lower res for performance and that crunchy texture
-      canvas.width = Math.ceil(window.innerWidth / 3);
-      canvas.height = Math.ceil(window.innerHeight / 3);
-    };
-
-    const render = () => {
-      // Throttle noise update to every 3 frames for performance + staccato feel
-      if (frameCount % 3 === 0) {
-        const imageData = ctx.createImageData(canvas.width, canvas.height);
-        const data = imageData.data;
-
-        for (let i = 0; i < data.length; i += 4) {
-          const value = Math.random() * 255;
-          data[i] = value; // R
-          data[i + 1] = value; // G
-          data[i + 2] = value; // B
-          data[i + 3] = 20; // Alpha - subtle blend
-        }
-
-        ctx.putImageData(imageData, 0, 0);
-      }
-
-      frameCount++;
-      animationFrameId = requestAnimationFrame(render);
-    };
-
-    window.addEventListener('resize', resize);
-    resize();
-    render();
-
-    return () => {
-      window.removeEventListener('resize', resize);
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, []);
-
+/**
+ * Static CSS noise overlay - CSS-based for performance.
+ * Uses CSS media query for responsive opacity (no JS resize listener).
+ * Dual-layer noise for intense grain texture.
+ */
+function StaticNoiseOverlay() {
   return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 w-full h-full opacity-50 mix-blend-overlay pointer-events-none"
-      style={{ imageRendering: 'pixelated' }}
-    />
+    <>
+      {/* Primary noise layer - coarse grain */}
+      <div
+        className="absolute inset-0 pointer-events-none mix-blend-soft-light opacity-[0.90] md:opacity-[0.60]"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+          backgroundRepeat: 'repeat',
+          backgroundSize: '150px 150px',
+        }}
+      />
+      {/* Secondary noise layer - fine grain */}
+      <div
+        className="absolute inset-0 pointer-events-none mix-blend-soft-light opacity-[0.50] md:opacity-[0.35]"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise2'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise2)'/%3E%3C/svg%3E")`,
+          backgroundRepeat: 'repeat',
+          backgroundSize: '100px 100px',
+        }}
+      />
+    </>
   );
 }
 
+/**
+ * Floating Emojis - Pure CSS animations for GPU acceleration.
+ * Reduced count from 48 to 16 for mobile performance.
+ */
 function FloatingEmojis() {
-  const [emojis] = useState(() => generateEmojis(24));
+  // Generate emojis once on mount
+  const emojis = useMemo(() => generateEmojis(32), []);
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
       {emojis.map((emoji) => (
-        <motion.div
+        <div
           key={emoji.id}
-          className="absolute select-none opacity-[0.15]"
+          className="absolute select-none opacity-[0.25] will-change-transform animate-float"
           style={{
             left: `${emoji.x}%`,
             top: `${emoji.y}%`,
             fontSize: emoji.size,
-          }}
-          initial={{
-            y: 0,
-            x: 0,
-            rotate: emoji.rotation,
-          }}
-          animate={{
-            y: [0, -30, 0, 30, 0],
-            x: [0, 20, 0, -20, 0],
-            rotate: [
-              emoji.rotation,
-              emoji.rotation + 15,
-              emoji.rotation,
-              emoji.rotation - 15,
-              emoji.rotation,
-            ],
-          }}
-          transition={{
-            duration: emoji.duration,
-            repeat: Infinity,
-            ease: 'easeInOut',
-            delay: emoji.delay,
+            animationDuration: `${emoji.duration}s`,
+            animationDelay: `${emoji.delay}s`,
           }}
         >
           {emoji.emoji}
-        </motion.div>
+        </div>
       ))}
     </div>
   );
 }
 
+/**
+ * Static Gradient Orbs - No animation, pure CSS positioning.
+ * Blur is reduced on mobile for GPU performance.
+ * Desktop orbs are large to ensure full coverage over the red base.
+ */
 function GradientOrbs() {
   return (
-    <div className="absolute inset-0 opacity-70 overflow-hidden">
-      {/* Primary gradient blur layer */}
-      <div className="absolute inset-0 blur-[120px]">
+    <div className="absolute inset-0 overflow-hidden">
+      {/* Blur container - lighter blur on mobile */}
+      <div className="absolute inset-0 blur-[30px] md:blur-[80px]">
         {/* Coral/Red Orb - Top Left */}
-        <motion.div
-          className="absolute w-[70vw] h-[70vw] rounded-full"
+        <div
+          className="absolute w-[180vw] h-[180vw] md:w-[110vw] md:h-[110vw] rounded-full"
           style={{
             backgroundColor: colors.red.DEFAULT,
-            top: '-20%',
-            left: '-20%',
-          }}
-          animate={{
-            x: [0, 100, 50, 0],
-            y: [0, 50, 100, 0],
-            scale: [1, 1.2, 1.1, 1],
-          }}
-          transition={{
-            duration: 25,
-            repeat: Infinity,
-            ease: 'easeInOut',
+            top: '-40%',
+            left: '-40%',
           }}
         />
 
         {/* Sky Blue Orb - Bottom Right */}
-        <motion.div
-          className="absolute w-[60vw] h-[60vw] rounded-full"
+        <div
+          className="absolute w-[180vw] h-[180vw] md:w-[100vw] md:h-[100vw] rounded-full"
           style={{
             backgroundColor: colors.blue.DEFAULT,
-            bottom: '-15%',
-            right: '-15%',
-          }}
-          animate={{
-            x: [0, -80, -40, 0],
-            y: [0, -60, -100, 0],
-            scale: [1, 1.3, 1.15, 1],
-          }}
-          transition={{
-            duration: 30,
-            repeat: Infinity,
-            ease: 'easeInOut',
+            bottom: '-50%',
+            right: '-40%',
           }}
         />
 
         {/* Warm Yellow Orb - Center-ish */}
-        <motion.div
-          className="absolute w-[50vw] h-[50vw] rounded-full"
+        <div
+          className="absolute w-[100vw] h-[100vw] md:w-[80vw] md:h-[80vw] rounded-full"
           style={{
             backgroundColor: colors.yellow.DEFAULT,
             top: '30%',
             left: '30%',
           }}
-          animate={{
-            x: [0, 60, -40, 0],
-            y: [0, -40, 60, 0],
-            scale: [1, 1.1, 0.95, 1],
-          }}
-          transition={{
-            duration: 22,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
         />
 
-        {/* Purple Orb - Top Right (accent) */}
-        <motion.div
-          className="absolute w-[40vw] h-[40vw] rounded-full opacity-60"
+        {/* Purple Orb - Top Right (desktop only) */}
+        <div
+          className="absolute hidden md:block w-[70vw] h-[70vw] rounded-full opacity-60"
           style={{
             backgroundColor: colors.purple.DEFAULT,
-            top: '-5%',
-            right: '10%',
-          }}
-          animate={{
-            x: [0, -50, 0, 50, 0],
-            y: [0, 80, 0],
-            scale: [1, 1.2, 1],
-          }}
-          transition={{
-            duration: 28,
-            repeat: Infinity,
-            ease: 'easeInOut',
+            top: '-15%',
+            right: '-10%',
           }}
         />
 
-        {/* Green Orb - Bottom Left (subtle) */}
-        <motion.div
-          className="absolute w-[35vw] h-[35vw] rounded-full opacity-50"
+        {/* Green Orb - Bottom Left (desktop only) */}
+        <div
+          className="absolute hidden md:block w-[60vw] h-[60vw] rounded-full opacity-50"
           style={{
             backgroundColor: colors.green.DEFAULT,
-            bottom: '5%',
-            left: '5%',
-          }}
-          animate={{
-            x: [0, 40, 20, 0],
-            y: [0, -50, 0],
-            scale: [1, 1.15, 1],
-          }}
-          transition={{
-            duration: 20,
-            repeat: Infinity,
-            ease: 'easeInOut',
+            bottom: '-5%',
+            left: '-5%',
           }}
         />
       </div>
@@ -300,21 +208,31 @@ function SubtleGrid() {
   );
 }
 
+/**
+ * AnimatedBackground Component
+ *
+ * Performance optimized:
+ * - Static gradient orbs (no JS animation)
+ * - CSS-based floating emojis (GPU accelerated)
+ * - Reduced emoji count (48 → 16)
+ * - Lighter blur on mobile (30px vs 60px)
+ * - Respects prefers-reduced-motion
+ */
 export function AnimatedBackground() {
-  // Memoize to prevent re-renders
+  // Memoize static components
   const gradientOrbs = useMemo(() => <GradientOrbs />, []);
   const floatingEmojis = useMemo(() => <FloatingEmojis />, []);
 
   return (
-    <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none bg-[#f5f5f5]">
-      {/* Layer 1: Animated gradient orbs */}
+    <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none bg-neutral-50 opacity-60 md:opacity-70 motion-reduce:!opacity-70">
+      {/* Layer 1: Static gradient orbs */}
       {gradientOrbs}
 
-      {/* Layer 2: Floating emoji particles */}
-      {floatingEmojis}
+      {/* Layer 2: CSS-animated floating emoji particles */}
+      <div className="motion-reduce:hidden">{floatingEmojis}</div>
 
-      {/* Layer 3: Noise texture overlay */}
-      <NoiseCanvas />
+      {/* Layer 3: Static noise texture overlay (CSS-based) */}
+      <StaticNoiseOverlay />
 
       {/* Layer 4: Subtle technical grid lines */}
       <SubtleGrid />

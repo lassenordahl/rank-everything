@@ -5,6 +5,7 @@
  * Used in GameView for ranking and DesignShowcase.
  */
 
+import { memo } from 'react';
 import { motion } from 'framer-motion';
 import type { Item } from '@rank-everything/shared-types';
 
@@ -23,7 +24,7 @@ export interface RankingSlotProps {
   className?: string;
 }
 
-export function RankingSlot({
+export const RankingSlot = memo(function RankingSlot({
   rank,
   item,
   onClick,
@@ -75,6 +76,6 @@ export function RankingSlot({
       )}
     </div>
   );
-}
+});
 
 export default RankingSlot;

@@ -47,7 +47,7 @@ export function RoomCodeDisplay({
           {showCopyButton && (
             <motion.button
               onClick={handleCopy}
-              className="text-xs py-2 px-3 border-2 border-black bg-white flex items-center gap-2 font-bold shadow-[3px_3px_0_0_#000]"
+              className="text-xs py-2 px-3 border-2 border-black bg-white flex items-center gap-3 font-bold shadow-[3px_3px_0_0_#000]"
               whileTap={{ scale: 0.98 }}
             >
               {copied ? `✓ ${COPY.buttons.copiedLink}` : `🔗 ${COPY.buttons.copyLink}`}
@@ -56,7 +56,7 @@ export function RoomCodeDisplay({
           {showQRButton && onQRClick && (
             <motion.button
               onClick={onQRClick}
-              className="text-xs py-2 px-3 border-2 border-black bg-white flex items-center gap-2 font-bold shadow-[3px_3px_0_0_#000]"
+              className="text-xs py-2 px-3 border-2 border-black bg-white flex items-center gap-3 font-bold shadow-[3px_3px_0_0_#000]"
               whileTap={{ scale: 0.98 }}
             >
               📲 {COPY.buttons.shareQR}

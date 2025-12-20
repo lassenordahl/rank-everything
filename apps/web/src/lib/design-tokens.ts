@@ -350,7 +350,7 @@ export const componentClasses = {
 
   // Inputs
   input:
-    'w-full border-2 border-black px-4 py-3 text-base placeholder:text-neutral-400 focus:outline-none focus:shadow-[0_0_0_2px_black] transition-shadow',
+    'w-full border-2 border-black px-4 py-3 text-base placeholder:text-neutral-400 focus:outline-none transition-shadow',
 
   // Avatar
   avatar:

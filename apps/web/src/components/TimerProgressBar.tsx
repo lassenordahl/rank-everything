@@ -53,7 +53,7 @@ export default function TimerProgressBar({ timerEndAt, totalSeconds }: TimerProg
   const isWarning = secondsRemaining <= 15 && !isUrgent;
 
   return (
-    <div className="w-full h-12 border-2 border-black relative bg-white overflow-hidden">
+    <div className="w-full h-12 border-2 border-black relative bg-white overflow-hidden inset-highlight">
       {/* Fill bar - starts full (100%) and depletes to 0% */}
       <div
         ref={barRef}

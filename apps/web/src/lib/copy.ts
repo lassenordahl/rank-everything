@@ -87,6 +87,7 @@ export const COPY = {
     submissionMode: 'Submission Mode',
     roundRobin: 'Round Robin',
     hostOnly: 'Host Only',
+    listSize: 'List Size',
     seconds: 'seconds',
   },
 } as const;

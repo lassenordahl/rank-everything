@@ -1,14 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameRoom } from '../hooks/useGameRoom';
 import { useEmojiClassifier } from '../hooks/useEmojiClassifier';
 import type { Item } from '@rank-everything/shared-types';
 import RevealScreen from './RevealScreen';
-import RandomRollModal from './RandomRollModal';
 import { COPY } from '../lib/copy';
 import { transitions } from '../lib/design-tokens';
-import { RankingList, RankingSlot, GameSubmission } from './ui';
+import { RankingList, RankingSlot, GameSubmission, LoadingSpinner } from './ui';
 import TimerProgressBar from './TimerProgressBar';
 import { AnimatedBackground } from './AnimatedBackground';
 
@@ -16,7 +15,7 @@ export default function GameView() {
   const { code } = useParams<{ code: string }>();
   const [inputText, setInputText] = useState('');
   const [currentItem, setCurrentItem] = useState<Item | null>(null);
-  const [showRandomRoll, setShowRandomRoll] = useState(false);
+  const [isLoadingRandom, setIsLoadingRandom] = useState(false);
 
   const { room, sendMessage, isMyTurn, isHost, playerId } = useGameRoom(code || '');
 
@@ -85,20 +84,7 @@ export default function GameView() {
     room?.timerEndAt && room?.timerEndAt > Date.now() && room?.config.timerDuration
   );
 
-  // Show reveal screen if game has ended
-  // IMPORTANT: This must come AFTER all hooks to avoid "fewer hooks" error
-  if (room?.status === 'ended' && playerId) {
-    return (
-      <>
-        <AnimatedBackground />
-        <RevealScreen room={room} playerId={playerId} isHost={isHost} sendMessage={sendMessage} />
-      </>
-    );
-  }
-
-  const currentPlayer = room?.players.find((p) => p.id === room?.currentTurnPlayerId);
-
-  const handleSubmitItem = () => {
+  const handleSubmitItem = useCallback(() => {
     if (!inputText.trim() || !isMyTurn) return;
 
     sendMessage(
@@ -110,69 +96,94 @@ export default function GameView() {
     );
 
     setInputText('');
-  };
+  }, [inputText, isMyTurn, sendMessage, classifiedEmoji]);
 
-  const handleRandomRollSelect = (text: string) => {
-    sendMessage(
-      JSON.stringify({
-        type: 'submit_item',
-        text,
-      })
+  // Fetch random item and prepopulate the input field
+  const handleRandomRoll = useCallback(async () => {
+    if (isLoadingRandom) return;
+    setIsLoadingRandom(true);
+    try {
+      const response = await fetch('/api/random-items?count=1');
+      if (response.ok) {
+        const data = (await response.json()) as { items: { text: string }[] };
+        if (data.items?.[0]?.text) {
+          setInputText(data.items[0].text);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch random item:', error);
+    } finally {
+      setIsLoadingRandom(false);
+    }
+  }, [isLoadingRandom]);
+
+  const handleRankItem = useCallback(
+    (ranking: number) => {
+      if (!effectiveCurrentItem) return;
+
+      sendMessage(
+        JSON.stringify({
+          type: 'rank_item',
+          itemId: effectiveCurrentItem.id,
+          ranking,
+        })
+      );
+
+      // Clear manual override - derived state will take over
+      setCurrentItem(null);
+    },
+    [effectiveCurrentItem, sendMessage]
+  );
+
+  // Show reveal screen if game has ended
+  // IMPORTANT: This must come AFTER all hooks to avoid "fewer hooks" error
+  if (room?.status === 'ended' && playerId) {
+    return (
+      <>
+        <AnimatedBackground />
+        <RevealScreen room={room} playerId={playerId} isHost={isHost} sendMessage={sendMessage} />
+      </>
     );
-  };
+  }
 
-  const handleRankItem = (ranking: number) => {
-    if (!effectiveCurrentItem) return;
-
-    sendMessage(
-      JSON.stringify({
-        type: 'rank_item',
-        itemId: effectiveCurrentItem.id,
-        ranking,
-      })
+  // Loading state
+  if (!room) {
+    return (
+      <>
+        <AnimatedBackground />
+        <LoadingSpinner />
+      </>
     );
+  }
 
-    // Clear manual override - derived state will take over
-    setCurrentItem(null);
-  };
+  const currentPlayer = room?.players.find((p) => p.id === room?.currentTurnPlayerId);
 
   return (
     <>
       <AnimatedBackground />
       <div className="relative z-10 flex-1 flex flex-col p-6 max-w-xl mx-auto w-full justify-center gap-6">
         {/* Header */}
-        <motion.div
-          layout
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={transitions.default}
-          className="text-center"
-        >
+        <div className="text-center">
           <p className="text-sm text-black/70 font-medium">Room {code}</p>
           <p className="text-lg font-bold">
             {room?.items.length || 0} / {room?.config.itemsPerGame ?? 10} items
           </p>
-        </motion.div>
+        </div>
 
         {/* Timer Bar */}
         {shouldShowTimer && room?.timerEndAt && room?.config.timerDuration && (
-          <motion.div
-            layout
-            initial={{ opacity: 0, scaleX: 0 }}
-            animate={{ opacity: 1, scaleX: 1 }}
-          >
+          <div>
             <TimerProgressBar
               timerEndAt={room.timerEndAt}
               totalSeconds={room.config.timerDuration}
             />
-          </motion.div>
+          </div>
         )}
 
         {/* Dynamic Content Area (Input or Ranking) */}
-        <motion.div layout className="overflow-hidden relative flex flex-col gap-6">
+        <div className="overflow-hidden relative flex flex-col gap-6">
           {/* Turn Indicator */}
           <motion.div
-            layout
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.1 }}
@@ -180,14 +191,14 @@ export default function GameView() {
           >
             {isMyTurn ? (
               <motion.div
-                className="badge-active inline-flex"
+                className="badge-active inline-flex inset-shadow"
                 animate={{ scale: [1, 1.02, 1] }}
                 transition={{ repeat: Infinity, duration: 2 }}
               >
                 {COPY.game.yourTurn}
               </motion.div>
             ) : (
-              <div className="badge-waiting inline-flex">
+              <div className="badge-waiting inline-flex inset-shadow">
                 <span className="animate-pulse">●</span>
                 {COPY.game.waitingFor} {currentPlayer?.nickname || '...'}
               </div>
@@ -209,7 +220,7 @@ export default function GameView() {
                   value={inputText}
                   onChange={setInputText}
                   onSubmit={handleSubmitItem}
-                  onRandomClick={() => setShowRandomRoll(true)}
+                  onRandomClick={handleRandomRoll}
                   isClassifying={isClassifying}
                   isModelLoading={isModelLoading}
                   modelProgress={modelProgress}
@@ -251,15 +262,10 @@ export default function GameView() {
               </motion.div>
             ) : null}
           </AnimatePresence>
-        </motion.div>
+        </div>
 
         {/* My Rankings */}
-        <motion.div
-          layout
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
+        <div>
           <RankingList
             rankings={myRankings}
             items={room?.items || []}
@@ -268,14 +274,7 @@ export default function GameView() {
             headerTitle={COPY.game.myRankings}
             animate={true}
           />
-        </motion.div>
-
-        {/* Random Roll Modal */}
-        <RandomRollModal
-          isOpen={showRandomRoll}
-          onClose={() => setShowRandomRoll(false)}
-          onSelect={handleRandomRollSelect}
-        />
+        </div>
       </div>
     </>
   );

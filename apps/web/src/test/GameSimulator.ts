@@ -80,18 +80,25 @@ export class GameSimulator {
   }
 
   addPlayer(nickname: string): { success: boolean; playerId?: string; error?: string } {
-    if (this.room.status !== 'lobby') {
-      const error = 'Cannot join: game already started';
+    // Don't allow joining ended games
+    if (this.room.status === 'ended') {
+      const error = 'Cannot join: game already ended';
       this.errors.push(error);
       return { success: false, error };
     }
 
     const playerId = `player-${this.room.players.length}`;
     const player = this.createPlayer(playerId, nickname);
+
+    // If game is in progress with items, this is a late join
+    if (this.room.status === 'in-progress' && this.room.items.length > 0) {
+      player.isCatchingUp = true;
+    }
+
     this.room.players.push(player);
     this.room.lastActivityAt = Date.now();
 
-    this.logEvent('player_joined', { playerId, nickname });
+    this.logEvent('player_joined', { playerId, nickname, isCatchingUp: player.isCatchingUp });
     return { success: true, playerId };
   }
 
@@ -311,9 +318,16 @@ export class GameSimulator {
     player.rankings[itemId] = ranking;
     this.logEvent('item_ranked', { playerId, itemId, ranking });
 
-    // Simplification: asking "Did everyone rank 10 items?" assuming 10 is limit
+    // Check if player caught up after ranking
+    this.checkPlayerCaughtUp(playerId);
+
+    // Check game end: all players must have ranked all items AND be caught up
     const itemsTarget = this.room.config.itemsPerGame;
-    const allDone = this.room.players.every((p) => Object.keys(p.rankings).length >= itemsTarget);
+    const allDone = this.room.players.every((p) => {
+      const rankCount = Object.keys(p.rankings).length;
+      const isCaughtUp = !p.isCatchingUp;
+      return rankCount >= itemsTarget && isCaughtUp;
+    });
 
     if (this.room.items.length >= itemsTarget && allDone) {
       this.endGame();
@@ -332,27 +346,37 @@ export class GameSimulator {
       return;
     }
 
-    // Find connected players
-    const connectedPlayers = this.room.players.filter((p) => p.connected);
-    if (connectedPlayers.length === 0) {
+    // Find active players (connected AND not catching up)
+    const activePlayers = this.room.players.filter((p) => p.connected && !p.isCatchingUp);
+    if (activePlayers.length === 0) {
       return;
     }
 
-    // Advance to next connected player
-    let nextIndex = (this.room.currentTurnIndex + 1) % this.room.players.length;
-    let attempts = 0;
+    // Find current player's position in the FULL players array
+    const currentFullIndex = this.room.players.findIndex(
+      (p) => p.id === this.room.currentTurnPlayerId
+    );
 
-    while (!this.room.players[nextIndex].connected && attempts < this.room.players.length) {
-      nextIndex = (nextIndex + 1) % this.room.players.length;
-      attempts++;
+    // Find next active player starting from position after current
+    let nextPlayer = null;
+    for (let i = 1; i <= this.room.players.length; i++) {
+      const checkIndex = (currentFullIndex + i) % this.room.players.length;
+      const candidate = this.room.players[checkIndex];
+      if (candidate && candidate.connected && !candidate.isCatchingUp) {
+        nextPlayer = candidate;
+        break;
+      }
     }
 
-    this.room.currentTurnIndex = nextIndex;
-    this.room.currentTurnPlayerId = this.room.players[nextIndex].id;
+    if (!nextPlayer) return;
+
+    // Update turn index to match position in full players array
+    this.room.currentTurnIndex = this.room.players.findIndex((p) => p.id === nextPlayer.id);
+    this.room.currentTurnPlayerId = nextPlayer.id;
 
     this.logEvent('turn_changed', {
       playerId: this.room.currentTurnPlayerId,
-      turnIndex: nextIndex,
+      turnIndex: this.room.currentTurnIndex,
     });
   }
 
@@ -390,6 +414,34 @@ export class GameSimulator {
 
   getRoom(): Room {
     return { ...this.room };
+  }
+
+  /**
+   * Get items that a player has not yet ranked.
+   */
+  getMissedItems(playerId: string): string[] {
+    const player = this.getPlayer(playerId);
+    if (!player) return [];
+    return this.room.items
+      .filter((item) => player.rankings[item.id] === undefined)
+      .map((item) => item.id);
+  }
+
+  /**
+   * Check if a late joiner has caught up (ranked all existing items).
+   * If so, sets isCatchingUp = false.
+   */
+  checkPlayerCaughtUp(playerId: string): boolean {
+    const player = this.getPlayer(playerId);
+    if (!player || !player.isCatchingUp) return false;
+
+    const missedItems = this.getMissedItems(playerId);
+    if (missedItems.length === 0) {
+      player.isCatchingUp = false;
+      this.logEvent('player_caught_up', { playerId });
+      return true;
+    }
+    return false;
   }
 
   getPlayer(playerId: string): Player | undefined {

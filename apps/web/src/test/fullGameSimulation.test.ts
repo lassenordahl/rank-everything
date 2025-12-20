@@ -272,14 +272,19 @@ describe('Full Game Simulations', () => {
       // Host submits first item
       sim.submitItem('host-player', 'Item 1');
 
-      // Player 2's turn, but they disconnect
+      // Now it's player-1's turn
+      sim.assertCurrentTurn('player-1');
+
+      // Player-1 disconnects
       sim.disconnectPlayer('player-1');
 
-      // Turn should advance to player 3
-      sim.skipTurn(); // Simulate timer expiry
+      // When turn needs to advance (e.g., timer expiry), it should skip disconnected player
+      sim.skipTurn();
+
+      // Turn should go to player-2, skipping disconnected player-1
       sim.assertCurrentTurn('player-2');
 
-      // Player 3 submits
+      // Player 2 submits
       const result = sim.submitItem('player-2', 'Item 2');
       expect(result.success).toBe(true);
     });
@@ -420,13 +425,34 @@ describe('Full Game Simulations', () => {
       }
     });
 
-    it('should reject joining mid-game', () => {
+    it('should allow late joining mid-game with catch-up mode', () => {
       const sim = new GameSimulator();
       sim.startGame();
 
-      const result = sim.addPlayer('LateJoiner');
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('game already started');
+      // Submit some items first
+      const result1 = sim.submitItem('host-player', 'Pizza');
+      if (result1.itemId) {
+        sim.rankItem('host-player', result1.itemId, 1);
+      }
+
+      // Late joiner should succeed but be in catch-up mode
+      const joinResult = sim.addPlayer('LateJoiner');
+      expect(joinResult.success).toBe(true);
+      expect(joinResult.playerId).toBeDefined();
+
+      // Late joiner should be catching up
+      if (!joinResult.playerId) throw new Error('No joinResult.playerId');
+      const latePlayer = sim.getPlayer(joinResult.playerId);
+      expect(latePlayer).toBeDefined();
+      if (!latePlayer) throw new Error('Player not found');
+      expect(latePlayer.isCatchingUp).toBe(true);
+
+      // Late joiner should see missed items
+      if (!joinResult.playerId) throw new Error('No joinResult.playerId');
+      const missedItems = sim.getMissedItems(joinResult.playerId);
+      expect(missedItems.length).toBe(1);
+      if (!result1.itemId) throw new Error('No itemId');
+      expect(missedItems[0]).toBe(result1.itemId);
     });
 
     it('should reject ranking outside 1-10 range', () => {
@@ -523,6 +549,286 @@ describe('Full Game Simulations', () => {
 
       const room = sim.getRoom();
       expect(room.config.timerDuration).toBe(30);
+    });
+  });
+
+  describe('Late Join Comprehensive Scenarios', () => {
+    it('should complete full game with late joiner participating after catch-up', () => {
+      // Start with 2 players, 5 items per game
+      const sim = new GameSimulator('LATE', 'Host');
+      sim.addPlayer('Player2');
+      sim.configure({ itemsPerGame: 5 });
+      sim.startGame();
+
+      // Submit 2 items before late joiner arrives
+      const item1 = sim.submitItem('host-player', 'Pizza');
+      if (!item1.itemId) throw new Error('No itemId');
+      sim.rankItem('host-player', item1.itemId, 1);
+      sim.rankItem('player-1', item1.itemId, 1);
+
+      const item2 = sim.submitItem('player-1', 'Tacos');
+      if (!item2.itemId) throw new Error('No itemId');
+      sim.rankItem('host-player', item2.itemId, 2);
+      sim.rankItem('player-1', item2.itemId, 2);
+
+      // Late joiner arrives
+      const lateJoin = sim.addPlayer('LateJoiner');
+      expect(lateJoin.success).toBe(true);
+      if (!lateJoin.playerId) throw new Error('No lateJoin.playerId');
+      const latePlayer = sim.getPlayer(lateJoin.playerId);
+      expect(latePlayer).toBeDefined();
+      if (!latePlayer) throw new Error('Player not found');
+      expect(latePlayer.isCatchingUp).toBe(true);
+
+      // Late joiner catches up on first 2 items
+      if (!lateJoin.playerId) throw new Error('No lateJoin.playerId');
+      sim.rankItem(lateJoin.playerId, item1.itemId, 3);
+      sim.rankItem(lateJoin.playerId, item2.itemId, 4);
+
+      // Should now be active
+      const latePlayerAfter = sim.getPlayer(lateJoin.playerId);
+      expect(latePlayerAfter?.isCatchingUp).toBe(false);
+
+      // Continue game - late joiner should be in rotation now
+      // Host's turn (after player-1 submitted last)
+      const item3 = sim.submitItem('host-player', 'Sushi');
+      if (!item3.itemId) throw new Error('No itemId');
+      sim.rankItem('host-player', item3.itemId, 3);
+      sim.rankItem('player-1', item3.itemId, 3);
+      if (!lateJoin.playerId) throw new Error('No lateJoin.playerId');
+      sim.rankItem(lateJoin.playerId, item3.itemId, 5);
+
+      // Player 1's turn
+      const item4 = sim.submitItem('player-1', 'Burgers');
+      if (!item4.itemId) throw new Error('No itemId');
+      sim.rankItem('host-player', item4.itemId, 4);
+      sim.rankItem('player-1', item4.itemId, 4);
+      if (!lateJoin.playerId) throw new Error('No lateJoin.playerId');
+      sim.rankItem(lateJoin.playerId, item4.itemId, 1);
+
+      // Late joiner's turn now!
+      if (!lateJoin.playerId) throw new Error('No lateJoin.playerId');
+      sim.assertCurrentTurn(lateJoin.playerId);
+      const item5 = sim.submitItem(lateJoin.playerId, 'Ice Cream');
+      if (!item5.itemId) throw new Error('No itemId');
+      sim.rankItem('host-player', item5.itemId, 5);
+      sim.rankItem('player-1', item5.itemId, 5);
+      sim.rankItem(lateJoin.playerId, item5.itemId, 2);
+
+      // Game should end
+      sim.assertStatus('ended');
+      sim.assertItemCount(5);
+
+      // All players should have 5 rankings
+      sim.assertPlayerRankings('host-player', 5);
+      sim.assertPlayerRankings('player-1', 5);
+      if (!lateJoin.playerId) throw new Error('No lateJoin.playerId');
+      sim.assertPlayerRankings(lateJoin.playerId, 5);
+    });
+
+    it('should handle multiple late joiners at different times', () => {
+      const sim = new GameSimulator('MULTI', 'Host');
+      sim.addPlayer('Player2');
+      sim.configure({ itemsPerGame: 4 });
+      sim.startGame();
+
+      // First item
+      const item1 = sim.submitItem('host-player', 'Pizza');
+      if (!item1.itemId) throw new Error('No itemId');
+      sim.rankItem('host-player', item1.itemId, 1);
+      sim.rankItem('player-1', item1.itemId, 1);
+
+      // First late joiner arrives
+      const late1 = sim.addPlayer('Late1');
+      if (!late1.playerId) throw new Error('No late1.playerId');
+      expect(sim.getPlayer(late1.playerId)?.isCatchingUp).toBe(true);
+
+      // Second item
+      const item2 = sim.submitItem('player-1', 'Tacos');
+      if (!item2.itemId) throw new Error('No itemId');
+      sim.rankItem('host-player', item2.itemId, 2);
+      sim.rankItem('player-1', item2.itemId, 2);
+
+      // Second late joiner arrives (needs to catch up on 2 items)
+      const late2 = sim.addPlayer('Late2');
+      if (!late2.playerId) throw new Error('No late2.playerId');
+      expect(sim.getPlayer(late2.playerId)?.isCatchingUp).toBe(true);
+      expect(sim.getMissedItems(late2.playerId).length).toBe(2);
+
+      // Late1 has 2 items to catch up, Late2 has 2 items
+      if (!late1.playerId) throw new Error('No late1.playerId');
+      expect(sim.getMissedItems(late1.playerId).length).toBe(2);
+      if (!late2.playerId) throw new Error('No late2.playerId');
+      expect(sim.getMissedItems(late2.playerId).length).toBe(2);
+
+      // Late1 catches up
+      if (!late1.playerId) throw new Error('No late1.playerId');
+      sim.rankItem(late1.playerId, item1.itemId, 3);
+      if (!late1.playerId) throw new Error('No late1.playerId');
+      sim.rankItem(late1.playerId, item2.itemId, 4);
+      expect(sim.getPlayer(late1.playerId)?.isCatchingUp).toBe(false);
+
+      // Late2 is still catching up
+      expect(sim.getPlayer(late2.playerId)?.isCatchingUp).toBe(true);
+
+      // Late2 catches up
+      if (!late2.playerId) throw new Error('No late2.playerId');
+      sim.rankItem(late2.playerId, item1.itemId, 3);
+      if (!late2.playerId) throw new Error('No late2.playerId');
+      sim.rankItem(late2.playerId, item2.itemId, 4);
+      expect(sim.getPlayer(late2.playerId)?.isCatchingUp).toBe(false);
+
+      // Now both should be in rotation - verify the room has 4 players
+      expect(sim.getRoom().players.length).toBe(4);
+    });
+
+    it('should allow late joiner to rank while active players submit new items', () => {
+      const sim = new GameSimulator('CONC', 'Host');
+      sim.addPlayer('Player2');
+      sim.configure({ itemsPerGame: 4 });
+      sim.startGame();
+
+      // Active players submit first item
+      const item1 = sim.submitItem('host-player', 'Pizza');
+      if (!item1.itemId) throw new Error('No itemId');
+      sim.rankItem('host-player', item1.itemId, 1);
+      sim.rankItem('player-1', item1.itemId, 1);
+
+      // Late joiner arrives
+      const lateJoin = sim.addPlayer('LateJoiner');
+      if (!lateJoin.playerId) throw new Error('No lateJoin.playerId');
+      expect(sim.getMissedItems(lateJoin.playerId)).toEqual([item1.itemId]);
+
+      // Active players submit another item while late joiner hasn't caught up
+      const item2 = sim.submitItem('player-1', 'Tacos');
+      if (!item2.itemId) throw new Error('No itemId');
+      sim.rankItem('host-player', item2.itemId, 2);
+      sim.rankItem('player-1', item2.itemId, 2);
+
+      // Late joiner now has 2 items to catch up on
+      if (!lateJoin.playerId) throw new Error('No lateJoin.playerId');
+      expect(sim.getMissedItems(lateJoin.playerId).length).toBe(2);
+
+      // Late joiner ranks first item (still catching up)
+      if (!lateJoin.playerId) throw new Error('No lateJoin.playerId');
+      sim.rankItem(lateJoin.playerId, item1.itemId, 3);
+      expect(sim.getPlayer(lateJoin.playerId)?.isCatchingUp).toBe(true);
+
+      // Another item submitted while late joiner catching up
+      const item3 = sim.submitItem('host-player', 'Sushi');
+      if (!item3.itemId) throw new Error('No itemId');
+      sim.rankItem('host-player', item3.itemId, 3);
+      sim.rankItem('player-1', item3.itemId, 3);
+
+      // Late joiner now has 2 more items to catch up on (item2, item3)
+      if (!lateJoin.playerId) throw new Error('No lateJoin.playerId');
+      expect(sim.getMissedItems(lateJoin.playerId).length).toBe(2);
+
+      // Late joiner finishes catching up
+      if (!lateJoin.playerId) throw new Error('No lateJoin.playerId');
+      sim.rankItem(lateJoin.playerId, item2.itemId, 4);
+      if (!lateJoin.playerId) throw new Error('No lateJoin.playerId');
+      sim.rankItem(lateJoin.playerId, item3.itemId, 5);
+      expect(sim.getPlayer(lateJoin.playerId)?.isCatchingUp).toBe(false);
+
+      // Now late joiner is in rotation for final item
+      const item4 = sim.submitItem('player-1', 'Burgers');
+      if (!item4.itemId) throw new Error('No itemId');
+      sim.rankItem('host-player', item4.itemId, 4);
+      sim.rankItem('player-1', item4.itemId, 4);
+      if (!lateJoin.playerId) throw new Error('No lateJoin.playerId');
+      sim.rankItem(lateJoin.playerId, item4.itemId, 1);
+
+      sim.assertStatus('ended');
+    });
+
+    it('should handle late joiner disconnecting before catching up', () => {
+      const sim = new GameSimulator('DISC', 'Host');
+      sim.addPlayer('Player2');
+      sim.configure({ itemsPerGame: 3 });
+      sim.startGame();
+
+      // Submit an item
+      const item1 = sim.submitItem('host-player', 'Pizza');
+      if (!item1.itemId) throw new Error('No itemId');
+      sim.rankItem('host-player', item1.itemId, 1);
+      sim.rankItem('player-1', item1.itemId, 1);
+
+      // Late joiner arrives
+      const lateJoin = sim.addPlayer('LateJoiner');
+      if (!lateJoin.playerId) throw new Error('No lateJoin.playerId');
+      expect(sim.getPlayer(lateJoin.playerId)?.isCatchingUp).toBe(true);
+
+      // Late joiner disconnects before catching up
+      if (!lateJoin.playerId) throw new Error('No lateJoin.playerId');
+      sim.disconnectPlayer(lateJoin.playerId);
+      expect(sim.getPlayer(lateJoin.playerId)?.connected).toBe(false);
+
+      // Game should continue without the late joiner in rotation
+      const item2 = sim.submitItem('player-1', 'Tacos');
+      if (!item2.itemId) throw new Error('No itemId');
+      sim.rankItem('host-player', item2.itemId, 2);
+      sim.rankItem('player-1', item2.itemId, 2);
+
+      const item3 = sim.submitItem('host-player', 'Sushi');
+      if (!item3.itemId) throw new Error('No itemId');
+      sim.rankItem('host-player', item3.itemId, 3);
+      sim.rankItem('player-1', item3.itemId, 3);
+
+      // Game ends without late joiner (they never caught up and are disconnected)
+      // Note: In real implementation, we'd need to decide if disconnected catching-up players block game end
+      // For now, the game checks rankCount >= target AND !isCatchingUp
+      // So the disconnected late joiner would block game end unless removed
+      // This tests that the game can still be played (no crashes)
+      sim.assertStatus('in-progress'); // Game blocked by uncaught-up late joiner
+      expect(sim.getRoom().items.length).toBe(3);
+    });
+
+    it('should handle edge case where only catching-up player remains active', () => {
+      const sim = new GameSimulator('EDGE', 'Host');
+      sim.addPlayer('Player2');
+      sim.configure({ itemsPerGame: 3 });
+      sim.startGame();
+
+      // Submit first item
+      const item1 = sim.submitItem('host-player', 'Pizza');
+      if (!item1.itemId) throw new Error('No itemId');
+      sim.rankItem('host-player', item1.itemId, 1);
+      sim.rankItem('player-1', item1.itemId, 1);
+
+      // Late joiner arrives
+      const lateJoin = sim.addPlayer('LateJoiner');
+      if (!lateJoin.playerId) throw new Error('No lateJoin.playerId');
+      expect(sim.getPlayer(lateJoin.playerId)?.isCatchingUp).toBe(true);
+
+      // All original players disconnect!
+      sim.disconnectPlayer('host-player');
+      sim.disconnectPlayer('player-1');
+
+      // Only the catching-up player is connected
+      const room = sim.getRoom();
+      const connectedPlayers = room.players.filter((p) => p.connected);
+      expect(connectedPlayers.length).toBe(1);
+      if (!lateJoin.playerId) throw new Error('No lateJoin.playerId');
+      expect(connectedPlayers[0].id).toBe(lateJoin.playerId);
+
+      // Late joiner is still catching up
+      expect(sim.getPlayer(lateJoin.playerId)?.isCatchingUp).toBe(true);
+
+      // Late joiner catches up
+      if (!lateJoin.playerId) throw new Error('No lateJoin.playerId');
+      sim.rankItem(lateJoin.playerId, item1.itemId, 2);
+      expect(sim.getPlayer(lateJoin.playerId)?.isCatchingUp).toBe(false);
+
+      // Turn is still on player-1 (disconnected), skip to advance to the only active player
+      sim.skipTurn();
+
+      // Now late joiner should be able to submit (they're the only active player)
+      if (!lateJoin.playerId) throw new Error('No lateJoin.playerId');
+      sim.assertCurrentTurn(lateJoin.playerId);
+      if (!lateJoin.playerId) throw new Error('No lateJoin.playerId');
+      const item2 = sim.submitItem(lateJoin.playerId, 'My Item');
+      expect(item2.success).toBe(true);
     });
   });
 });

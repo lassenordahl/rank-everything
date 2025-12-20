@@ -19,4 +19,5 @@ export type { RoomCodeDisplayProps } from './RoomCodeDisplay';
 export { PlayerList } from './PlayerList';
 export * from './Input';
 export * from './GameSubmission';
+export * from './LoadingSpinner';
 export type { PlayerListProps } from './PlayerList';

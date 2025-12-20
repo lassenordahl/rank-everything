@@ -33,6 +33,7 @@ export interface Player {
   connected: boolean;
   rankings: Record<string, number>; // itemId -> ranking (1-10)
   joinedAt: number;
+  isCatchingUp?: boolean; // true if player joined mid-game and hasn't ranked all existing items
 }
 
 // Item types

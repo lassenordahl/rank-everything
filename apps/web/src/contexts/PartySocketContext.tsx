@@ -1,3 +1,4 @@
+import PartySocket from 'partysocket';
 import type { ReactNode } from 'react';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { config } from '../lib/config';
@@ -15,46 +16,50 @@ export function PartySocketProvider({ children }: { children: ReactNode }) {
   const [lastMessage, setLastMessage] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
-  const wsRef = useRef<WebSocket | null>(null);
+  const socketRef = useRef<PartySocket | null>(null);
 
   // Connect to room when activeRoom changes
   useEffect(() => {
     if (!activeRoom) return;
 
     // Close existing connection if any
-    if (wsRef.current) {
-      wsRef.current.close();
+    if (socketRef.current) {
+      socketRef.current.close();
     }
 
-    const wsUrl = `${config.wsBaseUrl}/party/${activeRoom}`;
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
+    const socket = new PartySocket({
+      host: config.wsBaseUrl.replace(/^wss?:\/\//, ''), // PartySocket expects host without protocol
+      room: activeRoom,
+      party: 'main', // Default party name
+    });
 
-    ws.onopen = () => {
-      console.log('WebSocket connected');
+    socketRef.current = socket;
+
+    socket.addEventListener('open', () => {
+      console.log('PartySocket connected');
       setIsConnected(true);
 
       const playerId = localStorage.getItem('playerId');
       if (playerId) {
-        ws.send(JSON.stringify({ type: 'reconnect', playerId }));
+        socket.send(JSON.stringify({ type: 'reconnect', playerId }));
       }
-    };
+    });
 
-    ws.onmessage = (event) => {
+    socket.addEventListener('message', (event) => {
       setLastMessage(event.data);
-    };
+    });
 
-    ws.onclose = () => {
-      console.log('WebSocket disconnected');
+    socket.addEventListener('close', () => {
+      console.log('PartySocket disconnected');
       setIsConnected(false);
-    };
+    });
 
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
+    socket.addEventListener('error', (error) => {
+      console.error('PartySocket error:', error);
+    });
 
     return () => {
-      ws.close();
+      socket.close();
     };
   }, [activeRoom]);
 
@@ -65,8 +70,8 @@ export function PartySocketProvider({ children }: { children: ReactNode }) {
   };
 
   const sendMessage = (message: string) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(message);
+    if (socketRef.current) {
+      socketRef.current.send(message);
     }
   };
 

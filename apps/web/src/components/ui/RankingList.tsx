@@ -5,6 +5,7 @@
  * Used in GameView, RevealScreen, and DesignShowcase.
  */
 
+import { memo } from 'react';
 import { motion } from 'framer-motion';
 import type { Item } from '@rank-everything/shared-types';
 import { RankingSlot } from './RankingSlot';
@@ -30,7 +31,7 @@ export interface RankingListProps {
   animate?: boolean;
 }
 
-export function RankingList({
+export const RankingList = memo(function RankingList({
   rankings,
   items,
   itemsPerGame = 10,
@@ -62,17 +63,15 @@ export function RankingList({
       <div className="p-3 space-y-0.5">
         {slots.map((rank, index) => {
           const item = rankToItem.get(rank);
-          const Wrapper = animate ? motion.div : 'div';
-          const animationProps = animate
-            ? {
-                initial: { opacity: 0, x: -10 },
-                animate: { opacity: 1, x: 0 },
-                transition: { delay: index * 0.03 },
-              }
-            : {};
-
+          // Always use motion.div to ensure consistent hook count between renders
+          // Conditionally apply animation props instead of switching wrapper components
           return (
-            <Wrapper key={rank} {...animationProps}>
+            <motion.div
+              key={rank}
+              initial={animate ? { opacity: 0, x: -10 } : false}
+              animate={animate ? { opacity: 1, x: 0 } : false}
+              transition={animate ? { delay: index * 0.03 } : undefined}
+            >
               <RankingSlot
                 rank={rank}
                 item={item}
@@ -80,12 +79,12 @@ export function RankingList({
                 disabled={usedSlots.has(rank)}
                 interactive={interactive}
               />
-            </Wrapper>
+            </motion.div>
           );
         })}
       </div>
     </div>
   );
-}
+});
 
 export default RankingList;

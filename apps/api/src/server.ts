@@ -205,10 +205,19 @@ export default class GameRoom implements Party.Server {
           }
           break;
 
-        case 'rank_item':
+        case 'rank_item': {
+          const playerId = this.gameState.connections.get(sender.id);
           await handleRankItem(data, sender, this.gameState, (e) => this.broadcast(e));
 
-          // Check if game should end (all players ranked all items)
+          // Check if late joiner caught up after ranking
+          if (playerId && this.gameState.checkPlayerCaughtUp(playerId)) {
+            console.log(`[Server] Player ${playerId} caught up on rankings and is now active.`);
+            if (this.gameState.room) {
+              this.broadcast({ type: 'room_updated', room: this.gameState.room });
+            }
+          }
+
+          // Check if game should end (all active players ranked all items)
           if (this.gameState.room) {
             const { items, players, config } = this.gameState.room;
             const targetCount = config.itemsPerGame;
@@ -219,10 +228,14 @@ export default class GameRoom implements Party.Server {
 
             // Must have enough items first
             if (items.length >= targetCount) {
+              // All players (including those who were catching up) must have ranked all items
               const allDone = players.every((p) => {
                 const rankCount = Object.keys(p.rankings).length;
-                console.log(`[Server] Player ${p.nickname} rankings: ${rankCount}/${targetCount}`);
-                return rankCount >= targetCount;
+                const isCaughtUp = !p.isCatchingUp;
+                console.log(
+                  `[Server] Player ${p.nickname} rankings: ${rankCount}/${targetCount}, caughtUp: ${isCaughtUp}`
+                );
+                return rankCount >= targetCount && isCaughtUp;
               });
 
               if (allDone) {
@@ -238,6 +251,7 @@ export default class GameRoom implements Party.Server {
             await this.room.storage.put('room', this.gameState.room);
           }
           break;
+        }
 
         case 'skip_turn': {
           const turnChanged = handleSkipTurn(sender, this.gameState, (e) => this.broadcast(e));

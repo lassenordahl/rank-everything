@@ -110,6 +110,36 @@ export function useGameRoom(code: string) {
         });
       }
 
+      // Handle player reconnection (update connection status)
+      if (event.type === 'player_reconnected') {
+        const { playerId } = event as { playerId: string };
+        console.log(`[useGameRoom] Player reconnected: ${playerId}`);
+        queryClient.setQueryData(['room', code], (oldRoom: Room | undefined) => {
+          if (!oldRoom) return oldRoom;
+          return {
+            ...oldRoom,
+            players: oldRoom.players.map((p) =>
+              p.id === playerId ? { ...p, connected: true } : p
+            ),
+          };
+        });
+      }
+
+      // Handle player disconnect (update connection status)
+      if (event.type === 'player_left') {
+        const { playerId } = event as { playerId: string };
+        console.log(`[useGameRoom] Player left: ${playerId}`);
+        queryClient.setQueryData(['room', code], (oldRoom: Room | undefined) => {
+          if (!oldRoom) return oldRoom;
+          return {
+            ...oldRoom,
+            players: oldRoom.players.map((p) =>
+              p.id === playerId ? { ...p, connected: false } : p
+            ),
+          };
+        });
+      }
+
       // Handle "Kicked" or "Room Closed"?
       // if (event.type === 'room_closed') navigate('/');
     } catch (e) {

@@ -16,6 +16,14 @@ export async function handleJoinRoom(
     });
   }
 
+  // Don't allow joining ended games
+  if (state.room.status === 'ended') {
+    return new Response(JSON.stringify({ error: 'Game has ended' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
+  }
+
   const { nickname } = (await req.json()) as { nickname: string };
 
   // Validate input using Zod schema
@@ -47,6 +55,9 @@ export async function handleJoinRoom(
   const playerId = generateId();
   const now = Date.now();
 
+  // Determine if this is a late join (game in progress with existing items)
+  const isLateJoin = state.room.status === 'in-progress' && state.room.items.length > 0;
+
   const player: Player = {
     id: playerId,
     nickname: result.data.nickname,
@@ -54,6 +65,7 @@ export async function handleJoinRoom(
     connected: false, // Connected via WS later
     rankings: {},
     joinedAt: now,
+    isCatchingUp: isLateJoin, // Late joiners need to catch up on rankings
   };
 
   state.addPlayer(player);

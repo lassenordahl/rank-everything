@@ -181,21 +181,86 @@ export class GameRoomState {
     this.state.room.lastActivityAt = Date.now();
   }
 
+  /**
+   * Check if a player is catching up (hasn't ranked all existing items).
+   */
+  isPlayerCatchingUp(playerId: string): boolean {
+    if (!this.state.room) return false;
+    const player = this.getPlayer(playerId);
+    if (!player) return false;
+    return player.isCatchingUp === true;
+  }
+
+  /**
+   * Get the items a player has not yet ranked.
+   */
+  getPlayerMissedItems(playerId: string): string[] {
+    if (!this.state.room) return [];
+    const player = this.getPlayer(playerId);
+    if (!player) return [];
+
+    return this.state.room.items
+      .filter((item) => player.rankings[item.id] === undefined)
+      .map((item) => item.id);
+  }
+
+  /**
+   * Check if a catch-up player has ranked all existing items and transition them to active.
+   * Returns true if player was transitioned from catching-up to active.
+   */
+  checkPlayerCaughtUp(playerId: string): boolean {
+    if (!this.state.room) return false;
+    const player = this.getPlayer(playerId);
+    if (!player || !player.isCatchingUp) return false;
+
+    const missedItems = this.getPlayerMissedItems(playerId);
+    if (missedItems.length === 0) {
+      player.isCatchingUp = false;
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Get array of players eligible for turn rotation (not catching up).
+   */
+  getActivePlayers() {
+    if (!this.state.room) return [];
+    return this.state.room.players.filter((p) => !p.isCatchingUp);
+  }
+
   advanceTurn(): { previousTurnPlayerId: string; nextTurnPlayerId: string } | null {
-    if (!this.state.room || !this.state.room.currentTurnPlayerId) return null;
+    const room = this.state.room;
+    if (!room || !room.currentTurnPlayerId) return null;
 
-    // Simple round robin
-    this.state.room.currentTurnIndex =
-      (this.state.room.currentTurnIndex + 1) % this.state.room.players.length;
-    const nextPlayer = this.state.room.players[this.state.room.currentTurnIndex];
-    if (!nextPlayer) return null; // Should not happen
+    const previousTurnPlayerId = room.currentTurnPlayerId;
 
-    const previousTurnPlayerId = this.state.room.currentTurnPlayerId;
-    this.state.room.currentTurnPlayerId = nextPlayer.id;
-    this.state.room.timerEndAt = this.state.room.config.timerEnabled
-      ? Date.now() + this.state.room.config.timerDuration * 1000
+    // Get active players (not catching up)
+    const activePlayers = this.getActivePlayers();
+    if (activePlayers.length === 0) return null;
+
+    // Find current player's position in active players
+    const currentActiveIndex = activePlayers.findIndex((p) => p.id === room.currentTurnPlayerId);
+
+    // Move to next active player (handles case where current turn holder left or is catching up)
+    let nextActiveIndex: number;
+    if (currentActiveIndex === -1) {
+      // Current turn holder is no longer active, pick first active player
+      nextActiveIndex = 0;
+    } else {
+      nextActiveIndex = (currentActiveIndex + 1) % activePlayers.length;
+    }
+
+    const nextPlayer = activePlayers[nextActiveIndex];
+    if (!nextPlayer) return null;
+
+    // Update turn index to match position in full players array
+    room.currentTurnIndex = room.players.findIndex((p) => p.id === nextPlayer.id);
+    room.currentTurnPlayerId = nextPlayer.id;
+    room.timerEndAt = room.config.timerEnabled
+      ? Date.now() + room.config.timerDuration * 1000
       : null;
-    this.state.room.lastActivityAt = Date.now();
+    room.lastActivityAt = Date.now();
 
     return { previousTurnPlayerId, nextTurnPlayerId: nextPlayer.id };
   }
@@ -203,7 +268,7 @@ export class GameRoomState {
   checkTurnTimeout(now: number = Date.now()): boolean {
     if (!this.state.room || !this.state.room.timerEndAt) return false;
 
-    if (now > this.state.room.timerEndAt) {
+    if (now >= this.state.room.timerEndAt) {
       this.advanceTurn();
       return true;
     }

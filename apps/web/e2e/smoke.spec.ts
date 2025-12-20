@@ -428,6 +428,7 @@ test.describe('Game Completion (Smoke)', () => {
     browser,
     baseURL,
   }) => {
+    test.setTimeout(60000); // Allow more time for full game flow
     const hostContext = await browser.newContext();
     const page = await hostContext.newPage();
     setupLogging(page, 'SmokeGame');

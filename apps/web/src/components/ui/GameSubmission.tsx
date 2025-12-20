@@ -44,7 +44,7 @@ export function GameSubmission({
   return (
     <div className="flex flex-col w-full max-w-md mx-auto relative group">
       {/* Top Row: Emoji + Input */}
-      <div className="flex bg-white h-14 border-2 border-black z-10 focus-within:border-black relative">
+      <div className="flex bg-white h-14 border-2 border-black z-10 focus-within:border-black relative inset-highlight">
         {/* Emoji Box */}
         <div className="w-14 flex items-center justify-center border-r-2 border-black bg-neutral-50 flex-shrink-0">
           <motion.div
