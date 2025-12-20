@@ -388,7 +388,7 @@ function AvatarShowcase() {
       {/* Player List - Using shared PlayerList */}
       <div>
         <p className="text-sm text-neutral-500 mb-3">Player List (shared component)</p>
-        <PlayerList players={mockPlayers} hostId="player-0" showCount={true} animate={false} />
+        <PlayerList players={mockPlayers} hostId="player-0" showCount={true} />
       </div>
     </div>
   );
@@ -408,9 +408,9 @@ function RoomCodeShowcase() {
         </div>
       </div>
       <div>
-        <p className="text-sm text-neutral-500 mb-3">Compact Mode</p>
-        <div className="max-w-xs mx-auto border-2 border-black">
-          <RoomCodeDisplay code="ABCD" compact />
+        <p className="text-sm text-neutral-500 mb-3">Room Code Display (shared component)</p>
+        <div className="max-w-md mx-auto border-2 border-black p-4">
+          <RoomCodeDisplay code="YHCT" showCopyButton={true} showQRButton={true} />
         </div>
       </div>
     </div>
@@ -597,9 +597,16 @@ function RankingsShowcase() {
         </div>
       </div>
       <div>
-        <p className="text-sm text-neutral-500 mb-3">Compact Mode (for phone previews)</p>
-        <div className="max-w-xs">
-          <RankingList rankings={mockRankings} items={mockItems} itemsPerGame={10} compact={true} />
+        <p className="text-sm text-neutral-500 mb-3">Rankings List (shared component)</p>
+        <div className="max-w-md">
+          <RankingList
+            rankings={mockRankings}
+            items={mockItems}
+            itemsPerGame={10}
+            showHeader={true}
+            headerTitle="My Rankings"
+            animate={true}
+          />
         </div>
       </div>
     </div>
@@ -723,7 +730,7 @@ function AnimationShowcase() {
 function PhoneFrame({ children, label }: { children: React.ReactNode; label: string }) {
   return (
     <div className="flex-shrink-0">
-      <div className="w-[280px] h-[500px] border-4 border-black rounded-[30px] overflow-hidden bg-white shadow-lg">
+      <div className="w-[393px] h-[700px] border-4 border-black rounded-[40px] overflow-hidden bg-white shadow-lg">
         {/* Status Bar */}
         <div className="h-5 bg-black" />
         {/* Content */}
@@ -754,30 +761,21 @@ function HomePagePreview() {
 
 // Room Lobby Preview
 function RoomLobbyPreview() {
-  const players = [
-    { name: 'Lasse', isHost: true },
-    { name: 'Alex', isHost: false },
-    { name: 'Jordan', isHost: false },
-  ];
-
   return (
-    <div className="h-full flex flex-col p-3">
+    <div className="h-full flex flex-col p-4 space-y-4">
       {/* Room Code - using shared component in compact mode */}
-      <RoomCodeDisplay code="YHCT" showCopyButton={false} compact />
+      <RoomCodeDisplay code="YHCT" showCopyButton={false} />
 
-      <div className="border-2 border-black p-3 mb-3">
-        <h2 className="font-bold text-sm mb-2">Players ({players.length})</h2>
-        <ul className="space-y-2">
-          {players.map((p, i) => (
-            <li key={p.name} className="flex items-center gap-2 text-sm">
-              <PlayerAvatar name={p.name} colorIndex={i} size="sm" />
-              <span>{p.name}</span>
-              {p.isHost && <span className="text-neutral-500 text-xs">(host)</span>}
-              <span className="ml-auto w-2 h-2 rounded-full bg-green-500" />
-            </li>
-          ))}
-        </ul>
-      </div>
+      {/* Players List */}
+      <PlayerList
+        players={[
+          { id: '1', nickname: 'Lasse', connected: true },
+          { id: '2', nickname: 'Alex', connected: true },
+          { id: '3', nickname: 'Jordan', connected: true },
+        ]}
+        hostId="1"
+        showCount={true}
+      />
 
       <button className="mt-auto py-2 bg-black text-white font-semibold text-sm border-2 border-black">
         Start Game
@@ -819,17 +817,9 @@ function GameYourTurnPreview() {
       </div>
 
       {/* Input */}
-      <div className="border-2 border-black mb-3">
-        <div className="flex border-b-2 border-black">
-          <span className="px-2 py-2 border-r-2 border-black bg-neutral-50 text-xs">🤖</span>
-          <input className="flex-1 px-2 py-2 text-xs" placeholder="Enter something..." readOnly />
-        </div>
-        <div className="flex">
-          <button className="flex-1 py-2 text-xs font-semibold border-r-2 border-black bg-red-500 text-white">
-            Submit
-          </button>
-          <button className="px-3 py-2 text-sm">🎲</button>
-        </div>
+      {/* Game Submission Input */}
+      <div className="mb-3">
+        <GameSubmission value="" onChange={() => {}} onSubmit={() => {}} onRandomClick={() => {}} />
       </div>
 
       {/* Mini Rankings - using shared RankingList */}
@@ -837,7 +827,6 @@ function GameYourTurnPreview() {
         rankings={mockRankings}
         items={mockItems}
         itemsPerGame={10}
-        compact={true}
         showHeader={true}
         headerTitle="My Rankings"
       />
@@ -901,7 +890,6 @@ function GameWaitingPreview() {
         rankings={mockRankings}
         items={mockItems}
         itemsPerGame={10}
-        compact={true}
         showHeader={true}
         headerTitle="My Rankings"
       />
@@ -949,12 +937,10 @@ function RevealScreenPreview() {
         <button className="p-1 border border-black text-xs">→</button>
       </div>
 
-      {/* Rankings - using shared RankingList compact */}
       <RankingList
         rankings={mockRankings}
         items={mockItems}
         itemsPerGame={10}
-        compact={true}
         showHeader={true}
         headerTitle="Lasse's Rankings"
       />

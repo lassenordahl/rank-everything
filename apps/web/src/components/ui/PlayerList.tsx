@@ -5,11 +5,10 @@
  * Used in RoomLobby and DesignShowcase.
  */
 
-import { motion } from 'framer-motion';
 import type { Player } from '@rank-everything/shared-types';
 import { PlayerAvatar } from './PlayerAvatar';
-import { componentClasses, animations, transitions } from '../../lib/design-tokens';
 import { COPY } from '../../lib/copy';
+import { componentClasses } from '../../lib/design-tokens';
 
 export interface PlayerListProps {
   /** List of players */
@@ -18,77 +17,34 @@ export interface PlayerListProps {
   hostId?: string;
   /** Show player count in header */
   showCount?: boolean;
-  /** Compact mode for mini previews */
-  compact?: boolean;
-  /** Animate items */
-  animate?: boolean;
 }
 
-export function PlayerList({
-  players,
-  hostId,
-  showCount = true,
-  compact = false,
-  animate = true,
-}: PlayerListProps) {
-  if (compact) {
-    return (
-      <div className="border-2 border-black p-2">
-        <p className="text-xs font-bold mb-1">
-          {COPY.labels.players} ({players.length})
-        </p>
-        <div className="space-y-1">
-          {players.slice(0, 4).map((player, i) => (
-            <div key={player.id} className="flex items-center gap-1 text-xs">
-              <PlayerAvatar name={player.nickname} colorIndex={i} size="sm" />
-              <span>{player.nickname}</span>
-              {player.id === hostId && (
-                <span className="text-neutral-500 text-[10px]">{COPY.labels.host}</span>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
+export function PlayerList({ players, hostId, showCount = true }: PlayerListProps) {
   return (
-    <div className={componentClasses.card + ' w-full max-w-sm mb-8'}>
+    <div className={`${componentClasses.card} w-full max-w-sm mb-4`}>
       <div className={componentClasses.cardHeader}>
-        <h2 className="font-bold">
+        <h2 className="text-xs font-bold uppercase tracking-wide">
           {COPY.labels.players} {showCount && `(${players.length})`}
         </h2>
       </div>
-      <ul className="divide-y divide-neutral-200">
-        {players.map((player, index) => {
-          const Wrapper = animate ? motion.li : 'li';
-          const animationProps = animate
-            ? {
-                variants: animations.staggerItem,
-                initial: 'initial',
-                animate: 'animate',
-                transition: { ...transitions.default, delay: index * 0.05 },
-              }
-            : {};
-
-          return (
-            <Wrapper
-              key={player.id}
-              className="flex items-center gap-3 px-4 py-3"
-              {...animationProps}
-            >
-              <PlayerAvatar name={player.nickname} colorIndex={index} size="md" />
-              <span className="font-medium flex-1">{player.nickname}</span>
+      <div className="p-3">
+        <ul className="space-y-2">
+          {players.map((player, index) => (
+            <li key={player.id} className="flex items-center gap-2 text-sm">
+              <PlayerAvatar name={player.nickname} colorIndex={index} size="sm" />
+              <span className="font-medium">{player.nickname}</span>
               {player.id === hostId && (
-                <span className="text-muted text-sm">{COPY.labels.host}</span>
+                <span className="text-neutral-500 text-xs">{COPY.labels.host}</span>
               )}
-              <span className={player.connected ? 'text-green-600' : 'text-red-600'}>
-                {player.connected ? '●' : '○'}
-              </span>
-            </Wrapper>
-          );
-        })}
-      </ul>
+              <span
+                className={`ml-auto w-2 h-2 rounded-full ${
+                  player.connected ? 'bg-green-500' : 'bg-red-500'
+                }`}
+              />
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }

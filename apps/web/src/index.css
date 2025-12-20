@@ -39,11 +39,11 @@ body {
 }
 
 .btn:hover {
-  @apply bg-black text-white;
+  @apply bg-white text-black shadow-[4px_4px_0_0_#000] -translate-x-[2px] -translate-y-[2px];
 }
 
 .btn:active {
-  @apply scale-[0.98];
+  @apply shadow-none translate-x-0 translate-y-0 scale-100;
 }
 
 .btn:disabled {

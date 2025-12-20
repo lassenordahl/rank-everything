@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { transitions } from '../../lib/design-tokens';
+
 import { COPY } from '../../lib/copy';
 
 export interface RoomCodeDisplayProps {
@@ -19,8 +19,6 @@ export interface RoomCodeDisplayProps {
   showQRButton?: boolean;
   /** QR button click handler */
   onQRClick?: () => void;
-  /** Compact mode for mini previews */
-  compact?: boolean;
 }
 
 export function RoomCodeDisplay({
@@ -28,7 +26,6 @@ export function RoomCodeDisplay({
   showCopyButton = true,
   showQRButton = false,
   onQRClick,
-  compact = false,
 }: RoomCodeDisplayProps) {
   const [copied, setCopied] = useState(false);
 
@@ -38,30 +35,19 @@ export function RoomCodeDisplay({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (compact) {
-    return (
-      <div className="text-center py-2">
-        <p className="text-xs text-neutral-500 uppercase tracking-wide">Room Code</p>
-        <p className="text-2xl font-bold tracking-[0.2em] font-mono">{code}</p>
-      </div>
-    );
-  }
-
   return (
-    <motion.div
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={transitions.default}
-      className="text-center mb-8"
-    >
-      <p className="text-muted text-sm uppercase tracking-wide mb-2">{COPY.labels.roomCode}</p>
-      <h1 className="text-6xl font-bold tracking-[0.3em] font-mono mb-4">{code}</h1>
+    <div className="text-center py-2">
+      <p className="text-xs text-neutral-500 uppercase tracking-wide mb-1">
+        {COPY.labels.roomCode}
+      </p>
+      <p className="text-4xl font-bold tracking-[0.2em] font-mono mb-3">{code}</p>
+
       {(showCopyButton || showQRButton) && (
         <div className="flex gap-2 justify-center">
           {showCopyButton && (
             <motion.button
               onClick={handleCopy}
-              className="btn text-sm py-2 px-4"
+              className="text-xs py-2 px-3 border-2 border-black bg-white hover:bg-black hover:text-white flex items-center gap-2 font-bold transition-colors"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -71,7 +57,7 @@ export function RoomCodeDisplay({
           {showQRButton && onQRClick && (
             <motion.button
               onClick={onQRClick}
-              className="btn text-sm py-2 px-4"
+              className="text-xs py-2 px-3 border-2 border-black bg-white hover:bg-black hover:text-white flex items-center gap-2 font-bold transition-colors"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -80,7 +66,7 @@ export function RoomCodeDisplay({
           )}
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }
 

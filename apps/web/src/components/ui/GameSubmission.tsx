@@ -7,7 +7,6 @@
 
 import { motion } from 'framer-motion';
 import { Dice5 } from 'lucide-react';
-import { componentClasses } from '../../lib/design-tokens';
 import { COPY } from '../../lib/copy';
 
 interface GameSubmissionProps {
@@ -45,7 +44,7 @@ export function GameSubmission({
   return (
     <div className="flex flex-col w-full max-w-md mx-auto relative group">
       {/* Top Row: Emoji + Input */}
-      <div className="flex bg-white h-14 border-2 border-black z-10 focus-within:ring-0 focus-within:border-black focus-within:shadow-[0_0_0_2px_black] relative">
+      <div className="flex bg-white h-14 border-2 border-black z-10 focus-within:border-black relative">
         {/* Emoji Box */}
         <div className="w-14 flex items-center justify-center border-r-2 border-black bg-neutral-50 flex-shrink-0">
           <motion.div
@@ -86,7 +85,7 @@ export function GameSubmission({
           initial="idle"
           whileHover="hover"
           whileTap="tap"
-          className={`${componentClasses.buttonAccent} flex-1 flex items-center justify-center border-2 border-black border-t-0 border-r-0 overflow-hidden`}
+          className="bg-red-500 text-white px-6 py-3 font-semibold transition-colors flex-1 flex items-center justify-center border-2 border-black border-t-0 border-r-0 overflow-hidden disabled:bg-red-300 disabled:cursor-not-allowed"
         >
           <motion.span
             className="text-lg font-bold uppercase tracking-widest"
@@ -105,7 +104,7 @@ export function GameSubmission({
           initial="idle"
           whileHover="hover"
           whileTap="tap"
-          className="w-14 h-14 flex items-center justify-center border-2 border-black border-t-0 bg-white hover:bg-neutral-50 text-black transition-colors"
+          className="w-14 h-14 flex items-center justify-center border-2 border-black border-t-0 bg-white hover:bg-white text-black transition-all hover:shadow-[2px_2px_0_0_#000] hover:-translate-y-[1px] hover:-translate-x-[1px] active:shadow-none active:translate-y-0 active:translate-x-0"
           title="Random Roll"
         >
           <motion.div

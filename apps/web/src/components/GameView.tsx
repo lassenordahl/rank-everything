@@ -100,7 +100,7 @@ export default function GameView() {
     : null;
 
   return (
-    <div className="min-h-full flex flex-col p-6">
+    <div className="min-h-full flex flex-col p-6 max-w-xl mx-auto w-full justify-center">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}

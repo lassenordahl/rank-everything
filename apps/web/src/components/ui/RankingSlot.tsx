@@ -19,8 +19,6 @@ export interface RankingSlotProps {
   disabled?: boolean;
   /** Whether slot is interactive (clickable button vs static display) */
   interactive?: boolean;
-  /** Compact mode for mini previews */
-  compact?: boolean;
   /** Optional class name override */
   className?: string;
 }
@@ -31,9 +29,9 @@ export function RankingSlot({
   onClick,
   disabled = false,
   interactive = false,
-  compact = false,
   className = '',
 }: RankingSlotProps) {
+  // Inteactive mode for picking a slot (grids of buttons)
   if (interactive && onClick) {
     return (
       <motion.button
@@ -51,41 +49,26 @@ export function RankingSlot({
     );
   }
 
-  if (compact) {
-    return (
-      <div className="flex items-center gap-2 p-1 text-xs bg-white border-b border-neutral-100 last:border-0">
-        <span className="font-mono font-bold text-neutral-400 w-4 text-right flex-shrink-0">
-          {rank}.
-        </span>
-        {item ? (
-          <div className="flex items-center gap-1 min-w-0">
-            <span>{item.emoji}</span>
-            <span className="truncate">{item.text}</span>
-          </div>
-        ) : (
-          <span className="text-neutral-300">-</span>
-        )}
-      </div>
-    );
-  }
-
+  // Standard display mode (row in a list)
   return (
     <div
       onClick={interactive && !disabled ? onClick : undefined}
       className={`
-        relative flex items-center gap-3 p-3 bg-white transition-colors
+        flex items-center gap-2 p-2 bg-white border-b border-neutral-200 last:border-0 text-sm
         ${interactive && !disabled ? 'cursor-pointer hover:bg-neutral-50 active:bg-neutral-100' : ''}
         ${disabled ? 'opacity-50 cursor-not-allowed bg-neutral-50' : ''}
         ${className}
       `}
     >
-      <span className="font-mono font-bold text-neutral-400 w-6 text-right flex-shrink-0 text-lg">
+      <span className="font-mono font-bold text-neutral-400 w-5 text-right flex-shrink-0">
         {rank}.
       </span>
       {item ? (
-        <div className="flex items-center gap-2 min-w-0">
-          {item.emoji && <span className="text-xl">{item.emoji}</span>}
-          <span className="truncate">{item.text}</span>
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <span className="truncate font-medium">{item.text}</span>
+          {item.emoji && (
+            <span className="ml-auto pl-1 flex-shrink-0 text-lg leading-none">{item.emoji}</span>
+          )}
         </div>
       ) : (
         <span className="text-neutral-300">-</span>

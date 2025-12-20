@@ -23,8 +23,6 @@ export interface RankingListProps {
   interactive?: boolean;
   /** Used slots (for disabling) */
   usedSlots?: Set<number>;
-  /** Compact mode for mini previews */
-  compact?: boolean;
   /** Show header */
   showHeader?: boolean;
   /** Header title */
@@ -40,7 +38,6 @@ export function RankingList({
   onSlotClick,
   interactive = false,
   usedSlots = new Set(),
-  compact = false,
   showHeader = true,
   headerTitle = 'My Rankings',
   animate = true,
@@ -56,27 +53,14 @@ export function RankingList({
 
   const slots = Array.from({ length: itemsPerGame }, (_, i) => i + 1);
 
-  if (compact) {
-    return (
-      <div className="border-2 border-black flex-1 p-2">
-        {showHeader && <h3 className="font-bold text-xs mb-1">{headerTitle}</h3>}
-        <div className="space-y-0.5">
-          {slots.slice(0, 5).map((rank) => (
-            <RankingSlot key={rank} rank={rank} item={rankToItem.get(rank)} compact />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className={componentClasses.card}>
+    <div className={`${componentClasses.card} w-full max-w-sm mx-auto`}>
       {showHeader && (
         <div className={componentClasses.cardHeader}>
-          <h3 className="font-semibold">{headerTitle}</h3>
+          <h3 className="font-bold text-xs uppercase tracking-wide">{headerTitle}</h3>
         </div>
       )}
-      <div className="divide-y divide-neutral-200">
+      <div className="p-3 space-y-0.5">
         {slots.map((rank, index) => {
           const item = rankToItem.get(rank);
           const Wrapper = animate ? motion.div : 'div';

@@ -24,7 +24,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         {label && <label className="block text-sm font-bold mb-1">{label}</label>}
         <input
           ref={ref}
-          className={`${componentClasses.input} ${error ? 'border-red-500 bg-red-50' : ''} ${className}`}
+          className={`${componentClasses.input} focus:ring-0 focus:border-black focus:shadow-[0_0_0_1px_black] ${error ? 'border-red-500 bg-red-50' : ''} ${className}`}
           {...props}
         />
         {error && <p className="text-red-500 text-sm mt-1">{error}</p>}

@@ -134,7 +134,7 @@ export default function RoomLobby() {
   }
 
   return (
-    <div className="min-h-full flex flex-col items-center p-6">
+    <div className="min-h-full flex flex-col items-center p-6 max-w-xl mx-auto w-full justify-center">
       {/* Room Code */}
       <RoomCodeDisplay
         code={code || ''}
@@ -166,12 +166,7 @@ export default function RoomLobby() {
       </AnimatePresence>
 
       {/* Players */}
-      <PlayerList
-        players={room?.players || []}
-        hostId={room?.hostPlayerId}
-        showCount={true}
-        animate={true}
-      />
+      <PlayerList players={room?.players || []} hostId={room?.hostPlayerId} showCount={true} />
 
       {/* Settings (host only - editable) */}
       {isHost && (
@@ -225,7 +220,7 @@ export default function RoomLobby() {
                       })
                     );
                   }}
-                  className="px-2 py-1 border-2 border-black text-sm"
+                  className="px-2 py-1 border-2 border-black text-sm rounded-none"
                 >
                   <option value={30}>30s</option>
                   <option value={60}>60s</option>
@@ -248,7 +243,7 @@ export default function RoomLobby() {
                     })
                   );
                 }}
-                className="px-2 py-1 border-2 border-black text-sm"
+                className="px-2 py-1 border-2 border-black text-sm rounded-none"
               >
                 <option value="round-robin">{COPY.settings.roundRobin}</option>
                 <option value="host-only">{COPY.settings.hostOnly}</option>
