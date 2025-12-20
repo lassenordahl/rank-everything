@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { render } from 'ink';
 import { dirname, resolve } from 'path';
@@ -24,7 +23,7 @@ export const dashboardCommand = async (options: DashboardOptions) => {
   const apiDir = resolve(rootDir, 'apps/api');
 
   const executor = createWranglerExecutor(apiDir, isLocal);
-  const service = new DashboardService(executor, isLocal);
+  const service = new DashboardService(executor, isLocal, apiDir);
 
   // Clear console before starting TUI
   console.clear();

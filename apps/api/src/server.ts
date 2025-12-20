@@ -13,12 +13,44 @@ import { handleUpdateConfig } from './handlers/ws/updateConfig';
 // Grace period before removing disconnected players (60 seconds)
 const DISCONNECT_GRACE_PERIOD_MS = 60 * 1000;
 
+interface Env {
+  DB: unknown; // D1Database
+  ROOM_CACHE: unknown; // KVNamespace
+  WORKER_URL?: string;
+}
+
 export default class GameRoom implements Party.Server {
   // Use the extracted state manager
   private gameState: GameRoomState;
   private apiUrl = 'http://localhost:8787'; // Worker URL
   // Track pending disconnect timeouts for grace period
   private disconnectTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
+
+  async syncRoomToDB() {
+    if (!this.gameState.room || !this.room.env) return;
+
+    // Throttle calling this too frequently if needed, but for now specific events is fine
+    try {
+      const db = (this.room.env as unknown as Env).DB;
+      if (!db) return;
+
+      const room = this.gameState.room;
+      // Calculate active player count (connected)
+      const activeCount = Array.from(this.gameState.connections.values()).length;
+
+      const query = `
+        INSERT OR REPLACE INTO rooms (id, created_at, updated_at, player_count, status)
+        VALUES (?, ?, ?, ?, ?)
+      `;
+
+      await db
+        .prepare(query)
+        .bind(room.code, room.createdAt, Date.now(), activeCount, room.status)
+        .run();
+    } catch (e) {
+      console.error('[Server] Failed to sync room to DB:', e);
+    }
+  }
 
   constructor(readonly room: Party.Room) {
     this.gameState = new GameRoomState({
@@ -83,6 +115,7 @@ export default class GameRoom implements Party.Server {
             // Persist state
             if (response.ok && this.gameState.room) {
               await this.room.storage.put('room', this.gameState.room);
+              await this.syncRoomToDB();
             }
             return response;
           }
@@ -96,8 +129,10 @@ export default class GameRoom implements Party.Server {
             );
             // Persist state (player added)
             // Ideally we optimize persistence but correct > fast for now
+            // Ideally we optimize persistence but correct > fast for now
             if (response.ok && this.gameState.room) {
               await this.room.storage.put('room', this.gameState.room);
+              await this.syncRoomToDB();
             }
             return response;
           }
@@ -112,10 +147,10 @@ export default class GameRoom implements Party.Server {
             // Persist state (status changed)
             if (response.ok && this.gameState.room) {
               await this.room.storage.put('room', this.gameState.room);
-              // Set turn timer alarm if timer is enabled
               if (this.gameState.room.timerEndAt) {
                 await this.room.storage.setAlarm(this.gameState.room.timerEndAt);
               }
+              await this.syncRoomToDB();
             }
             return response;
           }
@@ -148,6 +183,8 @@ export default class GameRoom implements Party.Server {
     // Send current room state on connect
     if (this.gameState.room) {
       conn.send(JSON.stringify({ type: 'room_updated', room: this.gameState.room }));
+      // Sync on connect to update player count
+      await this.syncRoomToDB();
     }
   }
 
@@ -245,6 +282,8 @@ export default class GameRoom implements Party.Server {
                 if (this.gameState.room) {
                   this.broadcast({ type: 'room_updated', room: this.gameState.room });
                 }
+                // Sync finished status to DB
+                await this.syncRoomToDB();
               }
             }
 
@@ -374,6 +413,8 @@ export default class GameRoom implements Party.Server {
       // Notify others
       this.broadcast({ type: 'player_reconnected', playerId });
       if (this.gameState.room) await this.room.storage.put('room', this.gameState.room);
+      // Sync on reconnect
+      await this.syncRoomToDB();
     } else {
       sender.send(
         JSON.stringify({ type: 'error', message: 'Player not found', code: 'PLAYER_NOT_FOUND' })
@@ -395,8 +436,12 @@ export default class GameRoom implements Party.Server {
       const hostMigrated = this.gameState.migrateHostIfNeeded(playerId);
       if (hostMigrated && this.gameState.room) {
         console.log(`Host migrated to: ${this.gameState.room.hostPlayerId}`);
+        console.log(`Host migrated to: ${this.gameState.room.hostPlayerId}`);
         this.broadcast({ type: 'room_updated', room: this.gameState.room });
       }
+
+      // Sync on disconnect (updates player count)
+      await this.syncRoomToDB();
 
       // If game hasn't started (lobby), schedule delayed removal with grace period
       // This allows users to switch apps (e.g., to send the room link) without losing the room
@@ -431,6 +476,7 @@ export default class GameRoom implements Party.Server {
               await this.room.storage.delete('room');
             } else if (this.gameState.room) {
               await this.room.storage.put('room', this.gameState.room);
+              await this.syncRoomToDB();
             }
           }
 

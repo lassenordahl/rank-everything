@@ -1023,7 +1023,9 @@ describe('Full Game Simulations', () => {
             if (result.itemId) {
               // Everyone ranks
               sim.getRoom().players.forEach((p) => {
-                sim.rankItem(p.id, result.itemId!, i + 1);
+                if (result.itemId) {
+                  sim.rankItem(p.id, result.itemId, i + 1);
+                }
               });
             }
           }
@@ -1088,7 +1090,9 @@ describe('Full Game Simulations', () => {
           if (result.itemId) {
             // All 8 players rank
             sim.getRoom().players.forEach((p) => {
-              sim.rankItem(p.id, result.itemId!, i + 1);
+              if (result.itemId) {
+                sim.rankItem(p.id, result.itemId, i + 1);
+              }
             });
           }
         }

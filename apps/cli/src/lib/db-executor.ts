@@ -1,4 +1,3 @@
-
 import { spawnSync } from 'child_process';
 import { writeFileSync, unlinkSync } from 'fs';
 import { resolve } from 'path';
@@ -86,4 +85,31 @@ export function createWranglerExecutor(apiDir: string, isLocal: boolean): Databa
       }
     },
   };
+}
+
+export function listKVKeys(
+  apiDir: string,
+  binding: string,
+  isLocal: boolean,
+  prefix?: string
+): string[] {
+  // wrangler kv:key list --binding <BINDING> --local/--remote --prefix <PREFIX>
+  const target = isLocal ? '--local' : '--remote';
+  const args = ['kv:key', 'list', '--binding', binding, target];
+  if (prefix) args.push('--prefix', prefix);
+
+  // Wrangler KV operations are usually JSON
+  const result = runWrangler(args, apiDir, true);
+
+  if (!result.success) {
+    // If local and fails, might be just empty or not initialized
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(result.output); // Array of { name: string }
+    return parsed.map((k: { name: string }) => k.name);
+  } catch {
+    return [];
+  }
 }

@@ -96,4 +96,30 @@ describe('ApiClient', () => {
       expect(result.room).toEqual(mockRoom);
     });
   });
+
+  describe('getRandomItems', () => {
+    it('should fetch random items with count', async () => {
+      const mockItems = {
+        items: [{ text: 'Pizza' }, { text: 'Tacos' }],
+      };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockItems),
+      });
+
+      const result = await ApiClient.getRandomItems(2);
+
+      expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('/api/random-items?count=2'));
+      expect(result).toEqual(mockItems);
+    });
+
+    it('should throw error on failure', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        json: () => Promise.resolve({ error: 'DB Error' }),
+      });
+
+      await expect(ApiClient.getRandomItems(1)).rejects.toThrow('DB Error');
+    });
+  });
 });

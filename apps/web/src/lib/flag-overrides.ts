@@ -1,4 +1,4 @@
-import { FeatureFlag } from './flags';
+import type { FeatureFlag } from './flags';
 
 /**
  * Feature Flag Overrides

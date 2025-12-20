@@ -13,7 +13,6 @@
 
 import chalk from 'chalk';
 import ora from 'ora';
-import { spawnSync } from 'child_process';
 import { resolve, dirname } from 'path';
 import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -26,7 +25,7 @@ import {
   type MigrationStatus,
 } from '@rank-everything/db-schema';
 
-import { createWranglerExecutor } from '../lib/db-executor.js';
+import { createWranglerExecutor, runWrangler } from '../lib/db-executor.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -40,9 +39,7 @@ interface MigrateOptions {
   remote?: boolean;
 }
 
-interface MigrateCreateOptions {
-  // No options for now
-}
+type MigrateCreateOptions = Record<string, never>;
 
 interface SeedOptions {
   local?: boolean;
@@ -73,8 +70,6 @@ function getPaths() {
   const migrationsDir = resolve(rootDir, 'packages/db-schema/migrations');
   return { cliDir, rootDir, apiDir, migrationsDir };
 }
-
-
 
 // ============================================================================
 // Migration File Loader
@@ -121,9 +116,11 @@ function displayMigrationStatus(statuses: MigrationStatus[]): void {
 
   for (const status of statuses) {
     const icon =
-      status.status === 'applied' ? chalk.green('✓') :
-      status.status === 'pending' ? chalk.yellow('○') :
-      chalk.red('⚠');
+      status.status === 'applied'
+        ? chalk.green('✓')
+        : status.status === 'pending'
+          ? chalk.yellow('○')
+          : chalk.red('⚠');
 
     const name = status.name.padEnd(maxNameLen);
     const version = String(status.version).padStart(3, '0');
@@ -179,7 +176,7 @@ export const dbCommands = {
       try {
         const statuses = await runner.getStatus(migrations);
         displayMigrationStatus(statuses);
-      } catch (error) {
+      } catch {
         console.log(chalk.red('Failed to get migration status.'));
         console.log(chalk.dim('Make sure the database exists and is accessible.'));
         if (isLocal) {
@@ -249,9 +246,7 @@ export const dbCommands = {
     // Find next version number
     const existingMigrations = loadMigrationsFromDirectory(migrationsDir);
     const nextVersion =
-      existingMigrations.length > 0
-        ? Math.max(...existingMigrations.map((m) => m.version)) + 1
-        : 1;
+      existingMigrations.length > 0 ? Math.max(...existingMigrations.map((m) => m.version)) + 1 : 1;
 
     // Create filename
     const filename = createMigrationFilename(nextVersion, name);
@@ -309,7 +304,10 @@ export const dbCommands = {
 
     if (result.success) {
       spinner.succeed('Database seeded with 30 items');
-    } else if (result.error?.includes('UNIQUE constraint') || result.output?.includes('UNIQUE constraint')) {
+    } else if (
+      result.error?.includes('UNIQUE constraint') ||
+      result.output?.includes('UNIQUE constraint')
+    ) {
       spinner.warn('Seed data already exists (duplicates ignored)');
     } else {
       spinner.fail('Failed to seed database');

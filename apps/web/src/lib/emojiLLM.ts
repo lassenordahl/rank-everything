@@ -30,7 +30,10 @@ class EmojiLLM {
   private listeners: Set<(state: EmojiLLMState) => void> = new Set();
 
   // Pending request management
-  private pendingRequests: Map<number, { resolve: (value: string) => void; reject: (reason: unknown) => void }> = new Map();
+  private pendingRequests: Map<
+    number,
+    { resolve: (value: string) => void; reject: (reason: unknown) => void }
+  > = new Map();
   private nextRequestId = 0;
 
   constructor() {
@@ -70,9 +73,8 @@ class EmojiLLM {
         // Keep worker alive but let errors bubble up if explicit initialization fails
         this.worker.postMessage({
           type: 'initialize',
-          id: this.nextRequestId++
+          id: this.nextRequestId++,
         } as WorkerRequest);
-
       } catch (error) {
         console.error('[EmojiLLM] Failed to initialize worker:', error);
         const errorMsg = error instanceof Error ? error.message : 'Failed to initialize worker';
@@ -113,7 +115,7 @@ class EmojiLLM {
           // Global error or init error
           this.setState({
             state: 'error',
-            error: error || 'Unknown worker error'
+            error: error || 'Unknown worker error',
           });
         }
         break;
@@ -129,8 +131,8 @@ class EmojiLLM {
 
   async classifyEmoji(text: string): Promise<string> {
     if (this.currentState.state === 'error') {
-        console.warn('[EmojiLLM] Cannot classify, worker in error state');
-        return '🎲';
+      console.warn('[EmojiLLM] Cannot classify, worker in error state');
+      return '🎲';
     }
 
     if (!this.worker || this.currentState.state === 'idle') {
@@ -139,31 +141,33 @@ class EmojiLLM {
 
     // If logic above failed to init worker or we are still loading, wait for ready
     if (this.currentState.state === 'loading') {
-        // Wait for ready state by polling or just hooking into the promise if we could
-        // For simplicity, we'll just wait for the loadingPromise we triggered
-        if (this.loadingPromise) {
-            try {
-                await this.loadingPromise;
-            } catch (e) {
-                console.error("Worker initialization failed", e);
-                return '🎲';
-            }
+      // Wait for ready state by polling or just hooking into the promise if we could
+      // For simplicity, we'll just wait for the loadingPromise we triggered
+      if (this.loadingPromise) {
+        try {
+          await this.loadingPromise;
+        } catch (e) {
+          console.error('Worker initialization failed', e);
+          return '🎲';
         }
+      }
     }
 
     if (!this.worker) {
-        return '🎲';
+      return '🎲';
     }
 
     return new Promise((resolve, reject) => {
       const id = this.nextRequestId++;
       this.pendingRequests.set(id, { resolve, reject });
 
-      this.worker!.postMessage({
-        type: 'classify',
-        text,
-        id
-      } as WorkerRequest);
+      if (this.worker) {
+        this.worker.postMessage({
+          type: 'classify',
+          text,
+          id,
+        } as WorkerRequest);
+      }
 
       // Timeout after 10s to avoid hanging promises
       setTimeout(() => {

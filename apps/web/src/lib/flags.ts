@@ -30,7 +30,8 @@ export function isFeatureEnabled(
 ): boolean {
   // 1. Check overrides first
   if (overrides && flag in overrides) {
-    return overrides[flag]!;
+    const value = overrides[flag];
+    if (value !== undefined) return value;
   }
 
   // 2. Check disabled list

@@ -24,7 +24,8 @@ export async function handleJoinRoom(
     });
   }
 
-  const { nickname } = (await req.json()) as { nickname: string };
+  const body = (await req.json()) as Record<string, unknown>;
+  const nickname = (body.nickname as string) || '';
 
   // Validate input using Zod schema
   const result = joinRoomSchema.safeParse({ nickname });
@@ -56,7 +57,7 @@ export async function handleJoinRoom(
   const now = Date.now();
 
   // Determine if this is a late join (game in progress with existing items)
-  const isLateJoin = state.room.status === 'in-progress' && state.room.items.length > 0;
+  const isLateJoin = state.room?.status === 'in-progress' && state.room.items.length > 0;
 
   const player: Player = {
     id: playerId,

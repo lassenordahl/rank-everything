@@ -45,7 +45,8 @@ export default function RevealScreen({ room, playerId, isHost, sendMessage }: Re
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
-    const ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return canvas;
 
     // Fill with base neutral color
     ctx.fillStyle = '#fafafa';
@@ -67,7 +68,7 @@ export default function RevealScreen({ room, playerId, isHost, sendMessage }: Re
     // Blue orb - bottom right
     drawOrb(width * 0.9, height * 0.9, width * 0.6, colors.blue.DEFAULT, 0.55);
     // Yellow orb - center
-    drawOrb(width * 0.5, height * 0.5, width * 0.5, colors.yellow.DEFAULT, 0.50);
+    drawOrb(width * 0.5, height * 0.5, width * 0.5, colors.yellow.DEFAULT, 0.5);
 
     return canvas;
   }, []);
@@ -104,7 +105,8 @@ export default function RevealScreen({ room, playerId, isHost, sendMessage }: Re
       const finalCanvas = document.createElement('canvas');
       finalCanvas.width = imgWidth;
       finalCanvas.height = imgHeight;
-      const ctx = finalCanvas.getContext('2d')!;
+      const ctx = finalCanvas.getContext('2d');
+      if (!ctx) return canvas;
 
       // Layer 1: Gradient background
       const bgCanvas = generateBackground(imgWidth, imgHeight);
@@ -187,7 +189,8 @@ export default function RevealScreen({ room, playerId, isHost, sendMessage }: Re
       const finalCanvas = document.createElement('canvas');
       finalCanvas.width = imgWidth;
       finalCanvas.height = imgHeight;
-      const ctx = finalCanvas.getContext('2d')!;
+      const ctx = finalCanvas.getContext('2d');
+      if (!ctx) return;
 
       const bgCanvas = generateBackground(imgWidth, imgHeight);
       ctx.drawImage(bgCanvas, 0, 0);
@@ -337,7 +340,9 @@ export default function RevealScreen({ room, playerId, isHost, sendMessage }: Re
                 showHeader={true}
                 headerTitle={`${currentPlayer.nickname}'s Rankings`}
                 animate={true}
-                compareToRankings={isMyList ? undefined : room.players.find(p => p.id === playerId)?.rankings}
+                compareToRankings={
+                  isMyList ? undefined : room.players.find((p) => p.id === playerId)?.rankings
+                }
               />
 
               <div className="text-center mt-4">
@@ -401,8 +406,6 @@ export default function RevealScreen({ room, playerId, isHost, sendMessage }: Re
           </div>
         </motion.div>
       </div>
-
-
 
       {/* Share Preview Modal */}
       <SharePreviewModal

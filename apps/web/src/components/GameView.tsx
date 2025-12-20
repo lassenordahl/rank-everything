@@ -5,9 +5,17 @@ import { useGameRoom } from '../hooks/useGameRoom';
 import { useEmojiClassifier } from '../hooks/useEmojiClassifier';
 import type { Item } from '@rank-everything/shared-types';
 import RevealScreen from './RevealScreen';
+import { ApiClient } from '../lib/api';
 import { COPY } from '../lib/copy';
 import { transitions } from '../lib/design-tokens';
-import { RankingList, RankingSlot, GameSubmission, LoadingSpinner, RoomCodeDisplay, GameStatusBadge } from './ui';
+import {
+  RankingList,
+  RankingSlot,
+  GameSubmission,
+  LoadingSpinner,
+  RoomCodeDisplay,
+  GameStatusBadge,
+} from './ui';
 import TimerProgressBar from './TimerProgressBar';
 import QRCodeModal from './QRCodeModal';
 
@@ -129,12 +137,9 @@ export default function GameView() {
     if (isLoadingRandom) return;
     setIsLoadingRandom(true);
     try {
-      const response = await fetch('/api/random-items?count=1');
-      if (response.ok) {
-        const data = (await response.json()) as { items: { text: string }[] };
-        if (data.items?.[0]?.text) {
-          setInputText(data.items[0].text);
-        }
+      const data = await ApiClient.getRandomItems(1);
+      if (data.items?.[0]?.text) {
+        setInputText(data.items[0].text);
       }
     } catch (error) {
       console.error('Failed to fetch random item:', error);
@@ -164,7 +169,9 @@ export default function GameView() {
   // Show reveal screen if game has ended
   // IMPORTANT: This must come AFTER all hooks to avoid "fewer hooks" error
   if (room?.status === 'ended' && playerId) {
-    return <RevealScreen room={room} playerId={playerId} isHost={isHost} sendMessage={sendMessage} />;
+    return (
+      <RevealScreen room={room} playerId={playerId} isHost={isHost} sendMessage={sendMessage} />
+    );
   }
 
   // Loading state
@@ -175,8 +182,6 @@ export default function GameView() {
       </>
     );
   }
-
-
 
   return (
     <>

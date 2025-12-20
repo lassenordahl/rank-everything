@@ -16,14 +16,10 @@ import { roomCommands } from './commands/room.js';
 import { deployCommands } from './commands/deploy.js';
 import { docsCommand } from './commands/docs.js';
 import { dashboardCommand } from './commands/dashboard.js';
-import { analyzeCommand } from './commands/analyze.js';
 
 const program = new Command();
 
-program
-  .name('rank')
-  .description('CLI for Rank Everything development')
-  .version('0.1.0');
+program.name('rank').description('CLI for Rank Everything development').version('0.1.0');
 
 // Setup command
 program
@@ -169,16 +165,6 @@ program
   .option('--remote', 'Use remote database')
   .option('--prod', 'Use production database')
   .action(dashboardCommand);
-
-// Analyze command
-program
-  .command('analyze')
-  .description('Analyze system status')
-  .option('--local', 'Use local database (default)')
-  .option('--remote', 'Use remote database')
-  .option('--prod', 'Use production database')
-  .option('--json', 'Output as JSON')
-  .action(analyzeCommand);
 
 // Version with all packages
 program

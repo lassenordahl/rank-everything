@@ -1,81 +1,233 @@
-
 import React, { useState, useEffect } from 'react';
 import { Box, Text, useInput, useApp } from 'ink';
-import BigText from 'ink-big-text';
-import Gradient from 'ink-gradient';
-import Spinner from 'ink-spinner';
-import { DashboardService, type SystemStatus } from '../lib/dashboard-service.js';
+import type { DashboardService } from '../lib/dashboard-service.js';
+import { type SystemStatus } from '../lib/dashboard-service.js';
 
-const useSystemStatus = (service: DashboardService) => {
+const Header = ({ environment }: { environment: string }) => (
+  <Box flexDirection="column" alignItems="center" marginBottom={1}>
+    <Text color="cyan" bold>
+      RANK EVERYTHING
+    </Text>
+    <Text color="gray">CLI Dashboard • {environment.toUpperCase()} Environment</Text>
+  </Box>
+);
+
+const Cube = ({
+  title,
+  value,
+  color = 'blue',
+  subtext,
+}: {
+  title: string;
+  value: string | number;
+  color?: string;
+  subtext?: string;
+}) => (
+  <Box
+    borderStyle="round"
+    borderColor={color}
+    flexDirection="column"
+    paddingX={1}
+    flexGrow={1}
+    marginX={1}
+  >
+    <Text color="gray">{title}</Text>
+    <Text bold color={color} size={25}>
+      {value}
+    </Text>
+    {subtext && (
+      <Text dimColor color="gray">
+        {subtext}
+      </Text>
+    )}
+  </Box>
+);
+
+// Multi-line chart component
+const MultiLineChart = ({
+  title,
+  datasets,
+  height = 12,
+  width = 60,
+}: {
+  title: string;
+  datasets: { label: string; color: string; data: number[] }[];
+  height?: number;
+  width?: number;
+}) => {
+  // Flatten data to find max value for scaling
+  const allValues = datasets.flatMap((d) => d.data);
+  const maxValue = Math.max(...allValues, 10); // Minimum scale of 10
+
+  const getPointHeight = (value: number) => Math.round((value / maxValue) * (height - 1));
+
+  // Pad data to match width (Right alignment)
+  // We want the latest data at the end (right).
+  // If data.length < width, prepend nulls.
+  // If data.length > width, slice from end.
+  const processedDatasets = datasets.map((d) => {
+    const raw = d.data;
+    if (raw.length > width) return { ...d, data: raw.slice(-width) };
+    const padded = Array(width - raw.length)
+      .fill(null)
+      .concat(raw);
+    return { ...d, data: padded };
+  });
+
+  const rows = Array.from({ length: height }, (_, i) => {
+    const rowIndex = height - 1 - i;
+    const yLabel = Math.round(maxValue * (rowIndex / (height - 1)));
+
+    // Construct the row as a series of Boxes
+    const cells = Array.from({ length: width }, (_, colIndex) => {
+      let char = ' ';
+      let color = undefined;
+      let isGrid = false;
+
+      // Render datasets
+      for (const dataset of processedDatasets) {
+        const val = dataset.data[colIndex];
+        if (val === null) continue;
+
+        const ptHeight = getPointHeight(val);
+        if (ptHeight === rowIndex) {
+          char = '•'; // Cleaner point
+          // Simple slope approximation can go here if we had prev value
+          color = dataset.color;
+        }
+      }
+
+      return (
+        <Box key={colIndex} width={1} justifyContent="center">
+          <Text color={color} dimColor={isGrid}>
+            {char}
+          </Text>
+        </Box>
+      );
+    });
+
+    return (
+      <Box key={i} flexDirection="row">
+        {/* Y-Axis Label */}
+        <Box width={4} marginRight={1} justifyContent="flex-end">
+          {i % 4 === 0 ? (
+            <Text dimColor color="gray">
+              {yLabel}
+            </Text>
+          ) : (
+            <Text></Text>
+          )}
+        </Box>
+
+        {/* Y-Axis Line */}
+        <Box flexDirection="column">
+          <Text color="gray" dimColor>
+            │
+          </Text>
+        </Box>
+
+        {/* Plot Area */}
+        <Box marginLeft={1}>{cells}</Box>
+      </Box>
+    );
+  });
+
+  return (
+    <Box borderStyle="round" borderColor="gray" flexDirection="column" paddingX={1} flexGrow={1}>
+      <Box flexDirection="row" justifyContent="space-between" marginBottom={1}>
+        <Text bold>{title}</Text>
+        <Box flexDirection="row" gap={2}>
+          {datasets.map((d, i) => (
+            <Text key={i} color={d.color}>
+              ● {d.label}
+            </Text>
+          ))}
+        </Box>
+      </Box>
+
+      {/* Chart Rows */}
+      {rows}
+
+      {/* X-Axis Line */}
+      <Box flexDirection="row" marginLeft={5}>
+        <Text color="gray" dimColor>
+          └
+        </Text>
+        <Text color="gray" dimColor>
+          {'─'.repeat(width + 1)}
+        </Text>
+      </Box>
+
+      <Box marginLeft={5} justifyContent="space-between" width={width}>
+        <Text dimColor color="gray">
+          10m ago
+        </Text>
+        <Text dimColor color="gray">
+          Now
+        </Text>
+      </Box>
+    </Box>
+  );
+};
+
+export const Dashboard = ({ service }: { service: DashboardService }) => {
+  const { exit } = useApp();
+  // We manage our own refresh cycle to build history
   const [status, setStatus] = useState<SystemStatus | null>(null);
+  const [history, setHistory] = useState<{
+    rooms: number[];
+    users: number[]; // Mocked for now
+    rankings: number[]; // Derived from delta of itemsCount
+  }>({
+    rooms: [],
+    users: [],
+    rankings: [],
+  });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  // Manual polling hook since we need history state
   useEffect(() => {
     let mounted = true;
+    let lastItemsCount = 0;
 
-    const fetchStatus = async () => {
+    const fetchStats = async () => {
       try {
-        const data = await service.getSystemStatus();
-        if (mounted) {
-          setStatus(data);
-          setLoading(false);
-        }
-      } catch (e) {
-        if (mounted) setLoading(false);
+        const s = await service.getSystemStatus();
+        if (!mounted) return;
+
+        setStatus(s);
+        setLoading(false);
+
+        // Update History
+        setHistory((prev) => {
+          // Max 60 points for the new width
+          const maxPoints = 60;
+
+          const newRooms = [...prev.rooms, s.activeRooms].slice(-maxPoints);
+
+          // Mock users as 2x rooms + random jitter for demo vitality
+          const newUsers = [...prev.users, s.activeUsers].slice(-maxPoints);
+
+          // Rankings rate: Delta of items
+          const delta = lastItemsCount > 0 ? Math.max(0, s.itemsCount - lastItemsCount) : 0;
+          lastItemsCount = s.itemsCount;
+          const newRankings = [...prev.rankings, delta].slice(-maxPoints);
+
+          return { rooms: newRooms, users: newUsers, rankings: newRankings };
+        });
+      } catch (err) {
+        if (mounted) setError(String(err));
       }
     };
 
-    fetchStatus();
-    // Poll every 5 seconds
-    const interval = setInterval(fetchStatus, 5000);
-
+    fetchStats();
+    const interval = setInterval(fetchStats, 5000);
     return () => {
       mounted = false;
       clearInterval(interval);
     };
   }, [service]);
-
-  return { status, loading };
-};
-
-const Header = ({ environment }: { environment: string }) => (
-  <Box flexDirection="column" alignItems="center" marginBottom={1}>
-    <Gradient name="morning">
-      <BigText text="Rank Everything" font="tiny" />
-    </Gradient>
-    <Text color="gray">
-      CLI Dashboard • {environment.toUpperCase()} Environment
-    </Text>
-  </Box>
-);
-
-const StatBox = ({ label, value, color = "green" }: { label: string, value: string | number, color?: string }) => (
-  <Box borderStyle="round" borderColor={color} flexDirection="column" paddingX={1} marginRight={1} flexGrow={1}>
-    <Text color={color} bold>{label}</Text>
-    <Text>{value}</Text>
-  </Box>
-);
-
-const RecentItems = ({ items }: { items: SystemStatus['recentItems'] }) => (
-  <Box flexDirection="column" marginTop={1} borderStyle="single" borderColor="gray" paddingX={1}>
-    <Text bold underline>Recent Global Items</Text>
-    {items.length === 0 ? (
-      <Text italic color="gray">No items found</Text>
-    ) : (
-      items.map((item) => (
-        <Box key={item.id} justifyContent="space-between">
-          <Text>{item.emoji} {item.text}</Text>
-          <Text color="gray">{new Date(item.created_at).toLocaleTimeString()}</Text>
-        </Box>
-      ))
-    )}
-  </Box>
-);
-
-export const Dashboard = ({ service }: { service: DashboardService }) => {
-  const { exit } = useApp();
-  const { status, loading } = useSystemStatus(service);
-  const [activeTab, setActiveTab] = useState('overview'); // For future expansion via useInput
 
   useInput((input, key) => {
     if (key.escape || input === 'q') {
@@ -85,49 +237,76 @@ export const Dashboard = ({ service }: { service: DashboardService }) => {
 
   if (loading) {
     return (
-      <Box padding={2}>
-        <Text color="green">
-          <Spinner type="dots" /> Loading system status...
-        </Text>
+      <Box flexDirection="column" padding={2}>
+        <Text color="green">Initializing Real-time Dashboard...</Text>
+        <Text color="gray">Connecting to global network...</Text>
       </Box>
     );
   }
 
-  if (!status) {
+  if (error || !status) {
     return (
       <Box padding={2} flexDirection="column">
-        <Text color="red">Failed to load system status.</Text>
+        <Text color="red">Connection Failure: {error}</Text>
         <Text color="gray">Press 'q' to exit.</Text>
       </Box>
     );
   }
 
+  // Pad data with 0s if empty start
+  const chartData = [
+    { label: 'Active Users', color: 'green', data: history.users },
+    { label: 'Active Rooms', color: 'magenta', data: history.rooms },
+    { label: 'Rankings/5s', color: 'cyan', data: history.rankings },
+  ];
+
   return (
-    <Box flexDirection="column" padding={1}>
+    <Box flexDirection="column" padding={1} width="100%">
       <Header environment={status.environment} />
 
+      {/* Top Row: Key Metrics Cubes */}
       <Box flexDirection="row" marginBottom={1}>
-        <StatBox
-          label="DB Connection"
-          value={status.dbConnection ? "Connected" : "Disconnected"}
-          color={status.dbConnection ? "green" : "red"}
-        />
-        <StatBox
-          label="Global Items"
-          value={status.itemsCount}
-          color="cyan"
-        />
-        <StatBox
-          label="Usage Today"
-          value={status.emojiUsageToday}
-          color="yellow"
+        <Cube title="Active Rooms" value={status.activeRooms} color="magenta" subtext="Live" />
+        <Cube title="Active Users" value={status.activeUsers} color="green" subtext="Estimated" />
+        <Cube title="Total Items" value={status.itemsCount} color="cyan" subtext="Global DB" />
+        <Cube
+          title="DB Status"
+          value={status.dbConnection ? 'OK' : 'ERR'}
+          color={status.dbConnection ? 'green' : 'red'}
         />
       </Box>
 
-      <RecentItems items={status.recentItems} />
+      {/* Middle Row: Live Chart */}
+      <Box flexDirection="row" marginBottom={1} paddingX={1} height={15}>
+        <MultiLineChart title="Network Activity (Live)" datasets={chartData} />
+      </Box>
 
-      <Box marginTop={1} borderStyle="round" borderColor="dim" paddingX={1}>
-        <Text color="gray">Press 'q' or ESC to exit • Auto-refreshing every 5s</Text>
+      {/* Bottom Row: Live Feed */}
+      <Box flexDirection="column" borderStyle="single" borderColor="gray" padding={1} marginX={1}>
+        <Text bold underline marginBottom={1}>
+          Live Item Feed
+        </Text>
+        {status.recentItems.length === 0 ? (
+          <Text italic color="gray">
+            No items found
+          </Text>
+        ) : (
+          status.recentItems.slice(0, 3).map((item) => (
+            <Box key={item.id} justifyContent="space-between" marginBottom={0}>
+              <Text>
+                {item.emoji} {item.text}
+              </Text>
+              <Text color="gray" dimColor>
+                {new Date(item.created_at).toLocaleTimeString()}
+              </Text>
+            </Box>
+          ))
+        )}
+      </Box>
+
+      {/* Footer */}
+      <Box marginTop={1} paddingX={1} justifyContent="center">
+        <Text color="gray">Press 'q' to exit • Auto-refresh: 5s</Text>
       </Box>
     </Box>
   );

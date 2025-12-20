@@ -4,7 +4,7 @@
  * Tests for the database migration runner and utilities.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   MigrationRunner,
   generateChecksum,
@@ -253,9 +253,7 @@ describe('MigrationRunner', () => {
         [{ version: 1, name: 'test', applied_at: Date.now(), checksum }]
       );
 
-      const migrations: MigrationFile[] = [
-        createMigrationFile(1, 'test', '001_test.sql', sql),
-      ];
+      const migrations: MigrationFile[] = [createMigrationFile(1, 'test', '001_test.sql', sql)];
 
       const statuses = await runner.getStatus(migrations);
 

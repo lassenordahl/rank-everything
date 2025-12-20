@@ -1,5 +1,7 @@
-import { createContext, useContext, useMemo, ReactNode } from 'react';
-import { FeatureFlag, isFeatureEnabled } from '../lib/flags';
+import type { ReactNode } from 'react';
+import { createContext, useContext, useMemo } from 'react';
+import type { FeatureFlag } from '../lib/flags';
+import { isFeatureEnabled } from '../lib/flags';
 
 interface FeatureFlagContextType {
   isEnabled: (flag: FeatureFlag) => boolean;
@@ -25,11 +27,7 @@ export function FeatureFlagProvider({ children, overrides = {} }: FeatureFlagPro
     };
   }, [overrides]);
 
-  return (
-    <FeatureFlagContext.Provider value={value}>
-      {children}
-    </FeatureFlagContext.Provider>
-  );
+  return <FeatureFlagContext.Provider value={value}>{children}</FeatureFlagContext.Provider>;
 }
 
 /**

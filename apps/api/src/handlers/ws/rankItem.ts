@@ -31,7 +31,7 @@ export function handleRankItem(
   }
 
   const { itemId, ranking } = result.data;
-  const player = state.getPlayer(playerId);
+  const player = state.getPlayer(playerId as string);
   if (!player) return;
 
   // Check if slot is taken by another item

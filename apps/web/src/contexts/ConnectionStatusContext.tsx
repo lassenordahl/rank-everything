@@ -1,4 +1,12 @@
-import { createContext, useContext, useEffect, useState, useRef, useCallback, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useRef,
+  useCallback,
+  type ReactNode,
+} from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface ConnectionStatusContextType {
@@ -160,9 +168,9 @@ export function ConnectionStatusProvider({ children }: { children: ReactNode }) 
             exit={{ opacity: 0, y: 50 }}
             className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50"
           >
-            <div className="bg-yellow-500 text-black px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 font-mono text-sm">
-              <span className="animate-spin">⟳</span>
-              <span>Reconnecting...</span>
+            <div className="bg-white text-black border-2 border-black px-6 py-3 shadow-[4px_4px_0_0_#000000] flex items-center gap-3">
+              <span className="animate-spin text-xl font-bold">⟳</span>
+              <span className="font-bold uppercase tracking-wide">Reconnecting...</span>
             </div>
           </motion.div>
         )}

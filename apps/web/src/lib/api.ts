@@ -71,4 +71,15 @@ export class ApiClient {
 
     return response.json();
   }
+
+  static async getRandomItems(count: number): Promise<{ items: { text: string }[] }> {
+    const response = await fetch(`${this.baseUrl}/api/random-items?count=${count}`);
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || error.message || 'Failed to get random items');
+    }
+
+    return response.json();
+  }
 }

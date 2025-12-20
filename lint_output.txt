@@ -1,0 +1,20 @@
+
+> rank-everything@0.1.0 lint /Users/lassenordahl/dev/rank-everything
+> eslint .
+
+
+/Users/lassenordahl/dev/rank-everything/apps/cli/src/commands/db.ts
+   16:10  error  'spawnSync' is defined but never used. Allowed unused vars must match /^_/u                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+   43:11  error  An empty interface declaration allows any non-nullish value, including literals like `0` and `""`.
+- If that's what you want, disable this lint rule with an inline comment or configure the 'allowInterfaces' rule option.
+- If you want a type meaning "any object", you probably want `object` instead.
+- If you want a type meaning "any value", you probably want `unknown` instead  @typescript-eslint/no-empty-object-type
+  182:16  error  'error' is defined but never used                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+
+/Users/lassenordahl/dev/rank-everything/apps/web/src/components/RevealScreen.tsx
+  108:19  error  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+  191:19  error  Forbidden non-null assertion  @typescript-eslint/no-non-null-assertion
+
+✖ 5 problems (5 errors, 0 warnings)
+
+ ELIFECYCLE  Command failed with exit code 1.
