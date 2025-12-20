@@ -134,7 +134,7 @@ export default function RoomLobby() {
   }
 
   return (
-    <div className="min-h-full flex flex-col items-center p-6 max-w-xl mx-auto w-full justify-center">
+    <div className="min-h-full flex flex-col items-center p-6 max-w-xl mx-auto w-full justify-center gap-6">
       {/* Room Code */}
       <RoomCodeDisplay
         code={code || ''}
@@ -158,7 +158,7 @@ export default function RoomLobby() {
             animate="animate"
             exit="exit"
             transition={transitions.default}
-            className="w-full max-w-sm mb-6 p-3 border-2 border-red-500 bg-red-50 text-red-500 text-sm text-center"
+            className="w-full max-w-sm p-3 border-2 border-red-500 bg-red-50 text-red-500 text-sm text-center"
           >
             {error}
           </motion.div>
@@ -174,7 +174,7 @@ export default function RoomLobby() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ ...transitions.default, delay: 0.2 }}
-          className="card w-full max-w-sm mb-6"
+          className="card w-full max-w-sm"
         >
           <h2 className="font-bold mb-4">{COPY.labels.settings}</h2>
           <div className="space-y-4 text-sm">
@@ -258,7 +258,7 @@ export default function RoomLobby() {
         <motion.button
           onClick={handleStartGame}
           disabled={!(room && room.players.length >= 1) || startGame.isPending}
-          className="btn-primary"
+          className="btn-primary hover:shadow-[4px_4px_0_0_#22c55e]"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           initial={{ opacity: 0, y: 20 }}

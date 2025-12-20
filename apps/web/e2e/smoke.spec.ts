@@ -411,3 +411,99 @@ test.describe('Mobile Responsiveness', () => {
     await expect(page.getByPlaceholder(COPY.placeholders.nickname)).toBeVisible();
   });
 });
+
+test.describe('Game Completion (Smoke)', () => {
+  test('should show reveal screen after configured items are submitted (2 items)', async ({
+    browser,
+    baseURL,
+  }) => {
+    const hostContext = await browser.newContext();
+    const page = await hostContext.newPage();
+    setupLogging(page, 'SmokeGame');
+
+    try {
+      // Determine API URL
+      const isLocal = baseURL?.includes('localhost') || baseURL?.includes('127.0.0.1');
+      const apiBase = isLocal
+        ? 'http://localhost:1999'
+        : 'https://rank-everything.lassenordahl.partykit.dev';
+
+      // 1. Create Room via API with Custom Config (itemsPerGame: 2)
+      const roomCode = Array.from({ length: 4 }, () =>
+        String.fromCharCode(65 + Math.floor(Math.random() * 26))
+      ).join('');
+
+      console.log(`[Smoke] Creating room ${roomCode} with 2 items/game via API at ${apiBase}`);
+
+      const createRes = await page.request.post(`${apiBase}/party/${roomCode}`, {
+        data: {
+          action: 'create',
+          nickname: 'SmokeHost',
+          config: {
+            itemsPerGame: 2, // Override for fast test
+            submissionMode: 'host-only', // Simplify flow (only host submits)
+          },
+        },
+      });
+
+      expect(createRes.ok()).toBe(true);
+      console.log(`[Smoke] Room created successfully`);
+
+      // 2. Join Room via UI
+      await page.goto(`/${roomCode}`);
+
+      const createData = await createRes.json();
+      const hostPlayerId = createData.playerId;
+
+      // Set localStorage to simulate being the host
+      await page.addInitScript(
+        (arg) => {
+          localStorage.setItem('playerId', arg.playerId);
+          localStorage.setItem('playerNickname', 'SmokeHost');
+        },
+        { playerId: hostPlayerId }
+      );
+
+      // Now reload/go to room
+      await page.goto(`/${roomCode}`);
+
+      // Should see "Start Game" button (proof we are host)
+      await expect(page.getByRole('button', { name: COPY.buttons.startGame })).toBeVisible({
+        timeout: 10000,
+      });
+      console.log(`[Smoke] Joined as host`);
+
+      // 3. Start Game
+      await page.getByRole('button', { name: COPY.buttons.startGame }).click();
+      await expect(page.getByText(COPY.game.yourTurn)).toBeVisible();
+      console.log(`[Smoke] Game started`);
+
+      // 4. Play 2 Rounds
+      const items = ['ShortItem1', 'ShortItem2'];
+
+      for (let i = 0; i < 2; i++) {
+        console.log(`[Smoke] Round ${i + 1}`);
+        // Verify it's our turn
+        await expect(page.getByText(COPY.game.yourTurn)).toBeVisible();
+
+        // Submit
+        await page.getByPlaceholder(COPY.game.enterItem).fill(items[i]);
+        await page.getByRole('button', { name: COPY.game.submit }).click();
+
+        // Rank
+        await expect(page.getByText(items[i])).toBeVisible();
+        const slot = i + 1;
+        await page.getByRole('button', { name: String(slot), exact: true }).click();
+
+        await page.waitForTimeout(500);
+      }
+
+      // 5. Verify End Screen
+      console.log(`[Smoke] Verifying end state`);
+      await expect(page.getByText(COPY.reveal.playAgain)).toBeVisible({ timeout: 10000 });
+      console.log(`[Smoke] Reveal screen visible! Bug is fixed!`);
+    } finally {
+      await hostContext.close();
+    }
+  });
+});

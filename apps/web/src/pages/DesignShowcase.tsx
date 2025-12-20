@@ -702,20 +702,113 @@ function AnimationShowcase() {
       {/* Hover Effects */}
       <div>
         <p className="text-sm text-neutral-500 mb-3">Interactive Hover Effects</p>
-        <div className="flex gap-4">
-          <motion.div
-            className={`${componentClasses.cardPadded} cursor-pointer`}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            Scale on hover
-          </motion.div>
-          <motion.div
-            className={`${componentClasses.cardPadded} cursor-pointer`}
-            {...interactiveAnimations.cardElevate}
-          >
-            Offset shadow
-          </motion.div>
+        <div className="space-y-6">
+          <p className="text-sm text-neutral-600">
+            Black buttons use a distinct "Charcoal" shadow or "Color Pop" shadow to separate from
+            the background.
+          </p>
+
+          {/* Charcoal - The Standard */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="font-semibold text-sm">Standard (Charcoal)</p>
+              <span className="text-xs text-neutral-400">.btn-primary</span>
+            </div>
+            <motion.button
+              className={componentClasses.buttonPrimary}
+              {...interactiveAnimations.button}
+            >
+              Standard Button
+            </motion.button>
+          </div>
+
+          {/* Color Pops */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="font-semibold text-sm">Color Pops (Accents)</p>
+              <span className="text-xs text-neutral-400">Custom shadows</span>
+            </div>
+            <div className="flex flex-wrap gap-4">
+              <motion.button
+                className="h-14 px-6 py-2 border-2 border-black font-semibold text-lg bg-black text-white flex items-center justify-center transition-all hover:bg-neutral-900 hover:shadow-[4px_4px_0_0_#ef4444] hover:-translate-x-[2px] hover:-translate-y-[2px]"
+                whileTap={{ scale: 1, x: 0, y: 0, boxShadow: 'none' }}
+              >
+                Red Pop
+              </motion.button>
+              <motion.button
+                className="h-14 px-6 py-2 border-2 border-black font-semibold text-lg bg-black text-white flex items-center justify-center transition-all hover:bg-neutral-900 hover:shadow-[4px_4px_0_0_#fbbf24] hover:-translate-x-[2px] hover:-translate-y-[2px]"
+                whileTap={{ scale: 1, x: 0, y: 0, boxShadow: 'none' }}
+              >
+                Yellow Pop
+              </motion.button>
+              <motion.button
+                className="h-14 px-6 py-2 border-2 border-black font-semibold text-lg bg-black text-white flex items-center justify-center transition-all hover:bg-neutral-900 hover:shadow-[4px_4px_0_0_#3b82f6] hover:-translate-x-[2px] hover:-translate-y-[2px]"
+                whileTap={{ scale: 1, x: 0, y: 0, boxShadow: 'none' }}
+              >
+                Blue Pop
+              </motion.button>
+              <motion.button
+                className="h-14 px-6 py-2 border-2 border-black font-semibold text-lg bg-black text-white flex items-center justify-center transition-all hover:bg-neutral-900 hover:shadow-[4px_4px_0_0_#22c55e] hover:-translate-x-[2px] hover:-translate-y-[2px]"
+                whileTap={{ scale: 1, x: 0, y: 0, boxShadow: 'none' }}
+              >
+                Green Pop
+              </motion.button>
+            </div>
+          </div>
+
+          {/* Light Mode Color Pops */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="font-semibold text-sm">Color Pops (Light / White)</p>
+              <span className="text-xs text-neutral-400">Secondary style + Color</span>
+            </div>
+            <div className="flex flex-wrap gap-4">
+              <motion.button
+                className="h-14 px-6 py-2 border-2 border-black font-semibold text-lg bg-white text-black flex items-center justify-center transition-all hover:shadow-[4px_4px_0_0_#ef4444] hover:-translate-x-[2px] hover:-translate-y-[2px]"
+                whileTap={{ scale: 1, x: 0, y: 0, boxShadow: 'none' }}
+              >
+                Red Pop
+              </motion.button>
+              <motion.button
+                className="h-14 px-6 py-2 border-2 border-black font-semibold text-lg bg-white text-black flex items-center justify-center transition-all hover:shadow-[4px_4px_0_0_#fbbf24] hover:-translate-x-[2px] hover:-translate-y-[2px]"
+                whileTap={{ scale: 1, x: 0, y: 0, boxShadow: 'none' }}
+              >
+                Yellow Pop
+              </motion.button>
+              <motion.button
+                className="h-14 px-6 py-2 border-2 border-black font-semibold text-lg bg-white text-black flex items-center justify-center transition-all hover:shadow-[4px_4px_0_0_#3b82f6] hover:-translate-x-[2px] hover:-translate-y-[2px]"
+                whileTap={{ scale: 1, x: 0, y: 0, boxShadow: 'none' }}
+              >
+                Blue Pop
+              </motion.button>
+              <motion.button
+                className="h-14 px-6 py-2 border-2 border-black font-semibold text-lg bg-white text-black flex items-center justify-center transition-all hover:shadow-[4px_4px_0_0_#22c55e] hover:-translate-x-[2px] hover:-translate-y-[2px]"
+                whileTap={{ scale: 1, x: 0, y: 0, boxShadow: 'none' }}
+              >
+                Green Pop
+              </motion.button>
+            </div>
+          </div>
+
+          {/* Cards */}
+          <div className="pt-4 border-t border-neutral-200">
+            <p className="text-sm text-neutral-500 mb-3">Card Interactive States</p>
+            <div className="flex gap-4">
+              <motion.div
+                className={`${componentClasses.cardPadded} cursor-pointer`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                Scale on hover
+              </motion.div>
+              <motion.div
+                className={`${componentClasses.cardPadded} cursor-pointer`}
+                {...interactiveAnimations.cardElevate}
+              >
+                Offset shadow
+              </motion.div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -969,7 +1062,7 @@ function MobilePreview() {
       </p>
 
       {/* Vertical grid of phone previews */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 justify-items-center">
+      <div className="flex flex-wrap justify-center gap-12">
         <PhoneFrame label="Home">
           <HomePagePreview />
         </PhoneFrame>

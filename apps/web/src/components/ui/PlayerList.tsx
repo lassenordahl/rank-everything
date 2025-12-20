@@ -21,7 +21,7 @@ export interface PlayerListProps {
 
 export function PlayerList({ players, hostId, showCount = true }: PlayerListProps) {
   return (
-    <div className={`${componentClasses.card} w-full max-w-sm mb-4`}>
+    <div className={`${componentClasses.card} w-full max-w-sm`}>
       <div className={componentClasses.cardHeader}>
         <h2 className="text-xs font-bold uppercase tracking-wide">
           {COPY.labels.players} {showCount && `(${players.length})`}

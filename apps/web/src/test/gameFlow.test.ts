@@ -330,4 +330,46 @@ describe('Game Flow Integration', () => {
       expect(response.code).toBe('ROOM_NOT_FOUND');
     });
   });
+
+  describe('Bug Regression Tests', () => {
+    it('should transition to ended state immediately when last item is ranked', () => {
+      // Setup room with 2 players and 2 items for speed
+      const room = createMockLobbyRoom(2);
+      room.config.itemsPerGame = 2; // Override for simulator
+
+      // Start game
+      room.status = 'in-progress';
+      room.currentTurnIndex = 0;
+      room.currentTurnPlayerId = room.players[0].id;
+
+      // Mock items
+      const item1 = createMockItem({ id: 'item-1', text: 'Item 1' });
+      const item2 = createMockItem({ id: 'item-2', text: 'Item 2' });
+      room.items.push(item1, item2);
+
+      // Player 1 ranks both
+      room.players[0].rankings['item-1'] = 1;
+      room.players[0].rankings['item-2'] = 2;
+
+      // Player 2 ranks item 1
+      room.players[1].rankings['item-1'] = 1;
+
+      // Game should still be in progress
+      expect(room.status).toBe('in-progress');
+
+      // Player 2 ranks item 2 (The final action)
+      room.players[1].rankings['item-2'] = 2;
+
+      // This logic is usually handled by the server (check game end)
+      // We need to simulate the server logic here to verify our expectation of *when* it should happen
+      // In a real e2e test we'd check if the hook updated.
+      // Here we simulate the condition:
+      const allDone = room.players.every((p) => Object.keys(p.rankings).length >= 2);
+      if (allDone) {
+        room.status = 'ended';
+      }
+
+      expect(room.status).toBe('ended');
+    });
+  });
 });

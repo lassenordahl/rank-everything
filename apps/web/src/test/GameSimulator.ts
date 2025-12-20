@@ -44,6 +44,7 @@ export class GameSimulator {
         timerEnabled: true,
         timerDuration: 60,
         rankingTimeout: 15,
+        itemsPerGame: 10,
       },
       status: 'lobby',
       players: [],
@@ -248,10 +249,9 @@ export class GameSimulator {
 
     this.logEvent('item_submitted', { itemId, text, playerId });
 
-    // Check for game end
-    if (this.room.items.length >= 10) {
-      this.endGame();
-    } else {
+    // Check for game end - NO, wait for ranking!
+    // But stop asking for submissions if limit reached.
+    if (this.room.items.length < this.room.config.itemsPerGame) {
       this.advanceTurn();
     }
 
@@ -310,6 +310,14 @@ export class GameSimulator {
 
     player.rankings[itemId] = ranking;
     this.logEvent('item_ranked', { playerId, itemId, ranking });
+
+    // Simplification: asking "Did everyone rank 10 items?" assuming 10 is limit
+    const itemsTarget = this.room.config.itemsPerGame;
+    const allDone = this.room.players.every((p) => Object.keys(p.rankings).length >= itemsTarget);
+
+    if (this.room.items.length >= itemsTarget && allDone) {
+      this.endGame();
+    }
 
     return { success: true };
   }
@@ -504,7 +512,12 @@ export function runFullGame(
       // Only rank if slot is available
       const existingRankings = Object.values(player.rankings);
       if (!existingRankings.includes(ranking) && result.itemId) {
-        sim.rankItem(player.id, result.itemId, ranking);
+        const rankRes = sim.rankItem(player.id, result.itemId, ranking);
+        if (!rankRes.success) {
+          console.error(
+            `Rank failed: Player ${player.id} Item ${result.itemId} Rank ${ranking} - ${rankRes.error}`
+          );
+        }
       }
     });
   }

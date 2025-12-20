@@ -170,8 +170,8 @@ export default class GameRoom implements Party.Server {
             this.gameState.room &&
             this.gameState.room.items.length >= this.gameState.room.config.itemsPerGame
           ) {
-            this.gameState.endGame();
-            this.broadcast({ type: 'game_ended' });
+            // Do NOT end game yet! We must wait for ranking.
+            // Just don't advance turn (since no more submissions needed)
           } else if (this.gameState.room?.config.submissionMode === 'round-robin') {
             // Advance turn after item submission in round-robin mode
             const result = this.gameState.advanceTurn();
@@ -207,7 +207,36 @@ export default class GameRoom implements Party.Server {
 
         case 'rank_item':
           await handleRankItem(data, sender, this.gameState, (e) => this.broadcast(e));
-          if (this.gameState.room) await this.room.storage.put('room', this.gameState.room);
+
+          // Check if game should end (all players ranked all items)
+          if (this.gameState.room) {
+            const { items, players, config } = this.gameState.room;
+            const targetCount = config.itemsPerGame;
+
+            console.log(
+              `[Server] Checking game end. Items: ${items.length}, Target: ${targetCount}, Players: ${players.length}`
+            );
+
+            // Must have enough items first
+            if (items.length >= targetCount) {
+              const allDone = players.every((p) => {
+                const rankCount = Object.keys(p.rankings).length;
+                console.log(`[Server] Player ${p.nickname} rankings: ${rankCount}/${targetCount}`);
+                return rankCount >= targetCount;
+              });
+
+              if (allDone) {
+                console.log('[Server] Game Ended! Broadcasting events.');
+                this.gameState.endGame();
+                this.broadcast({ type: 'game_ended' });
+                if (this.gameState.room) {
+                  this.broadcast({ type: 'room_updated', room: this.gameState.room });
+                }
+              }
+            }
+
+            await this.room.storage.put('room', this.gameState.room);
+          }
           break;
 
         case 'skip_turn': {

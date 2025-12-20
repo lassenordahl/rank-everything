@@ -47,9 +47,8 @@ export function RoomCodeDisplay({
           {showCopyButton && (
             <motion.button
               onClick={handleCopy}
-              className="text-xs py-2 px-3 border-2 border-black bg-white hover:bg-black hover:text-white flex items-center gap-2 font-bold transition-colors"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              className="text-xs py-2 px-3 border-2 border-black bg-white flex items-center gap-2 font-bold transition-all hover:shadow-[3px_3px_0_0_#000] hover:-translate-x-[1px] hover:-translate-y-[1px]"
+              whileTap={{ scale: 0.98, x: 0, y: 0, boxShadow: 'none' }}
             >
               {copied ? `✓ ${COPY.buttons.copiedLink}` : `🔗 ${COPY.buttons.copyLink}`}
             </motion.button>
@@ -57,9 +56,8 @@ export function RoomCodeDisplay({
           {showQRButton && onQRClick && (
             <motion.button
               onClick={onQRClick}
-              className="text-xs py-2 px-3 border-2 border-black bg-white hover:bg-black hover:text-white flex items-center gap-2 font-bold transition-colors"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              className="text-xs py-2 px-3 border-2 border-black bg-white flex items-center gap-2 font-bold transition-all hover:shadow-[3px_3px_0_0_#000] hover:-translate-x-[1px] hover:-translate-y-[1px]"
+              whileTap={{ scale: 0.98, x: 0, y: 0, boxShadow: 'none' }}
             >
               📲 {COPY.buttons.shareQR}
             </motion.button>

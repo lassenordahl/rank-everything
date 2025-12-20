@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameRoom } from '../hooks/useGameRoom';
@@ -16,7 +16,6 @@ export default function GameView() {
   const [inputText, setInputText] = useState('');
   const [currentItem, setCurrentItem] = useState<Item | null>(null);
   const [showRandomRoll, setShowRandomRoll] = useState(false);
-  const [now, setNow] = useState(Date.now());
 
   const { room, sendMessage, isMyTurn, isHost, playerId } = useGameRoom(code || '');
 
@@ -36,13 +35,7 @@ export default function GameView() {
   // Use derived unrankedItem, but allow manual override via setCurrentItem for immediate feedback
   const effectiveCurrentItem = currentItem ?? unrankedItem;
 
-  // Update timer every second
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setNow(Date.now());
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
+  // Timer is now handled internally by TimerProgressBar for performance
 
   // Show reveal screen if game has ended
   if (room?.status === 'ended' && playerId) {
@@ -94,19 +87,20 @@ export default function GameView() {
   // Get which slots are already used
   const usedSlots = new Set(Object.values(myRankings));
 
-  // Calculate timer display (uses `now` state that updates every second)
-  const timerRemaining = room?.timerEndAt
-    ? Math.max(0, Math.ceil((room.timerEndAt - now) / 1000))
-    : null;
+  // Determine if timer should be shown (static check)
+  const shouldShowTimer = Boolean(
+    room?.timerEndAt && room?.timerEndAt > Date.now() && room?.config.timerDuration
+  );
 
   return (
-    <div className="min-h-full flex flex-col p-6 max-w-xl mx-auto w-full justify-center">
+    <div className="min-h-full flex flex-col p-6 max-w-xl mx-auto w-full justify-center gap-6">
       {/* Header */}
       <motion.div
+        layout
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={transitions.default}
-        className="text-center mb-4"
+        className="text-center"
       >
         <p className="text-sm text-muted">Room {code}</p>
         <p className="text-lg font-bold">
@@ -115,109 +109,103 @@ export default function GameView() {
       </motion.div>
 
       {/* Timer Bar */}
-      {timerRemaining !== null && timerRemaining > 0 && room?.config.timerDuration && (
-        <motion.div
-          initial={{ opacity: 0, scaleX: 0 }}
-          animate={{ opacity: 1, scaleX: 1 }}
-          className="mb-4"
-        >
-          <TimerProgressBar
-            secondsRemaining={timerRemaining}
-            totalSeconds={room.config.timerDuration}
-          />
+      {shouldShowTimer && room?.timerEndAt && room?.config.timerDuration && (
+        <motion.div layout initial={{ opacity: 0, scaleX: 0 }} animate={{ opacity: 1, scaleX: 1 }}>
+          <TimerProgressBar timerEndAt={room.timerEndAt} totalSeconds={room.config.timerDuration} />
         </motion.div>
       )}
 
-      {/* Turn Indicator */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.1 }}
-        className="text-center mb-6"
-      >
-        {isMyTurn ? (
-          <motion.div
-            className="badge-active inline-flex"
-            animate={{ scale: [1, 1.02, 1] }}
-            transition={{ repeat: Infinity, duration: 2 }}
-          >
-            {COPY.game.yourTurn}
-          </motion.div>
-        ) : (
-          <div className="badge-waiting inline-flex">
-            <span className="animate-pulse">●</span>
-            {COPY.game.waitingFor} {currentPlayer?.nickname || '...'}
-          </div>
-        )}
-      </motion.div>
-
-      {/* Submit Item (when it's your turn and no item to rank) */}
-      <AnimatePresence mode="wait">
-        {isMyTurn && !effectiveCurrentItem && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={transitions.default}
-            className="mb-6"
-          >
-            <GameSubmission
-              value={inputText}
-              onChange={setInputText}
-              onSubmit={handleSubmitItem}
-              onRandomClick={() => setShowRandomRoll(true)}
-              isClassifying={isClassifying}
-              isModelLoading={isModelLoading}
-              modelProgress={modelProgress}
-              classifiedEmoji={classifiedEmoji}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Current Item to Rank */}
-      <AnimatePresence mode="wait">
-        {effectiveCurrentItem && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={transitions.spring}
-            className="card mb-6 text-center"
-          >
-            <motion.p
-              className="text-5xl mb-2"
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={transitions.springBouncy}
+      {/* Dynamic Content Area (Input or Ranking) */}
+      <motion.div layout className="overflow-hidden relative flex flex-col gap-6">
+        {/* Turn Indicator */}
+        <motion.div
+          layout
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="text-center"
+        >
+          {isMyTurn ? (
+            <motion.div
+              className="badge-active inline-flex"
+              animate={{ scale: [1, 1.02, 1] }}
+              transition={{ repeat: Infinity, duration: 2 }}
             >
-              {effectiveCurrentItem.emoji}
-            </motion.p>
-            <p className="text-xl font-bold mb-4">{effectiveCurrentItem.text}</p>
-            <p className="text-muted mb-4">{COPY.game.chooseSlot}</p>
-
-            <div className="grid grid-cols-5 gap-2">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                <RankingSlot
-                  key={n}
-                  rank={n}
-                  item={null}
-                  onClick={() => handleRankItem(n)}
-                  disabled={usedSlots.has(n)}
-                  interactive={true}
-                />
-              ))}
+              {COPY.game.yourTurn}
+            </motion.div>
+          ) : (
+            <div className="badge-waiting inline-flex">
+              <span className="animate-pulse">●</span>
+              {COPY.game.waitingFor} {currentPlayer?.nickname || '...'}
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </motion.div>
+
+        {/* Content Switching Area: Submission or Ranking */}
+        <AnimatePresence mode="popLayout">
+          {isMyTurn && !effectiveCurrentItem ? (
+            <motion.div
+              key="submission-form"
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }}
+              transition={transitions.default}
+              className="w-full"
+            >
+              <GameSubmission
+                value={inputText}
+                onChange={setInputText}
+                onSubmit={handleSubmitItem}
+                onRandomClick={() => setShowRandomRoll(true)}
+                isClassifying={isClassifying}
+                isModelLoading={isModelLoading}
+                modelProgress={modelProgress}
+                classifiedEmoji={classifiedEmoji}
+              />
+            </motion.div>
+          ) : effectiveCurrentItem ? (
+            <motion.div
+              key="ranking-panel"
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.15 } }}
+              transition={transitions.spring}
+              className="card text-center w-full"
+            >
+              <motion.p
+                className="text-5xl mb-2"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={transitions.springBouncy}
+              >
+                {effectiveCurrentItem.emoji}
+              </motion.p>
+              <p className="text-xl font-bold mb-4">{effectiveCurrentItem.text}</p>
+              <p className="text-muted mb-4">{COPY.game.chooseSlot}</p>
+
+              <div className="grid grid-cols-5 gap-2">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                  <RankingSlot
+                    key={n}
+                    rank={n}
+                    item={null}
+                    onClick={() => handleRankItem(n)}
+                    disabled={usedSlots.has(n)}
+                    interactive={true}
+                  />
+                ))}
+              </div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      </motion.div>
 
       {/* My Rankings */}
       <motion.div
+        layout
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="mt-auto"
       >
         <RankingList
           rankings={myRankings}

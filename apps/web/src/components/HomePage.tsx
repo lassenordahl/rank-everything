@@ -64,7 +64,7 @@ export default function HomePage() {
 
   if (mode === 'home') {
     return (
-      <div className="min-h-full flex flex-col items-center justify-center p-6">
+      <div className="min-h-full flex flex-col items-center justify-center p-6 gap-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -72,7 +72,7 @@ export default function HomePage() {
           className="text-center"
         >
           <h1 className="text-5xl font-bold mb-2">{COPY.appTitle}</h1>
-          <p className="text-muted mb-12">{COPY.appTagline}</p>
+          <p className="text-muted">{COPY.appTagline}</p>
         </motion.div>
 
         <AnimatePresence>
@@ -83,7 +83,7 @@ export default function HomePage() {
               animate="animate"
               exit="exit"
               transition={transitions.default}
-              className="w-full max-w-xs mb-6 p-3 border-2 border-red-500 bg-red-50 text-red-500 text-sm text-center"
+              className="w-full max-w-xs p-3 border-2 border-red-500 bg-red-50 text-red-500 text-sm text-center"
             >
               {error}
             </motion.div>
@@ -101,7 +101,7 @@ export default function HomePage() {
               setError(null);
               setMode('create');
             }}
-            className="btn"
+            className="btn-secondary"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -113,7 +113,7 @@ export default function HomePage() {
               setError(null);
               setMode('join');
             }}
-            className="btn"
+            className="btn-secondary"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -130,13 +130,13 @@ export default function HomePage() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={transitions.default}
-        className="min-h-full flex flex-col items-center justify-center p-6"
+        className="min-h-full flex flex-col items-center justify-center p-6 gap-8"
       >
         <motion.h2
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={transitions.default}
-          className="text-3xl font-bold mb-8"
+          className="text-3xl font-bold"
         >
           {COPY.labels.createRoomTitle}
         </motion.h2>
@@ -173,22 +173,24 @@ export default function HomePage() {
           <motion.button
             onClick={handleCreateRoom}
             disabled={!nickname.trim() || createRoom.isPending}
-            className="btn-primary"
+            className="btn-primary hover:shadow-[4px_4px_0_0_#22c55e]"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
             {createRoom.isPending ? COPY.pending.creating : COPY.buttons.create}
           </motion.button>
 
-          <button
+          <motion.button
             onClick={() => {
               setError(null);
               setMode('home');
             }}
-            className="text-muted hover:text-black transition-colors mt-4"
+            className="btn-secondary"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
           >
             {COPY.buttons.back}
-          </button>
+          </motion.button>
         </motion.div>
       </motion.div>
     );
@@ -199,13 +201,13 @@ export default function HomePage() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={transitions.default}
-      className="min-h-full flex flex-col items-center justify-center p-6"
+      className="min-h-full flex flex-col items-center justify-center p-6 gap-8"
     >
       <motion.h2
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={transitions.default}
-        className="text-3xl font-bold mb-8"
+        className="text-3xl font-bold"
       >
         {COPY.labels.joinRoomTitle}
       </motion.h2>
@@ -257,15 +259,17 @@ export default function HomePage() {
           {joinRoom.isPending ? COPY.pending.joining : COPY.buttons.join}
         </motion.button>
 
-        <button
+        <motion.button
           onClick={() => {
             setError(null);
             setMode('home');
           }}
-          className="text-muted hover:text-black transition-colors mt-4"
+          className="btn-secondary"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
         >
           {COPY.buttons.back}
-        </button>
+        </motion.button>
       </motion.div>
     </motion.div>
   );

@@ -99,13 +99,13 @@ export default function RevealScreen({ room, playerId, isHost, sendMessage }: Re
   };
 
   return (
-    <div className="min-h-full flex flex-col p-6">
+    <div className="min-h-full flex flex-col justify-center items-center p-6 gap-6 w-full max-w-lg mx-auto">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={transitions.default}
-        className="text-center mb-6"
+        className="text-center"
       >
         <h1 className="text-3xl font-bold mb-2">Game Over!</h1>
         <p className="text-muted">Room {room.id}</p>
@@ -116,66 +116,68 @@ export default function RevealScreen({ room, playerId, isHost, sendMessage }: Re
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.1 }}
-        className="flex items-center justify-center gap-4 mb-6"
+        className="flex items-center justify-center gap-4 w-full"
       >
         <motion.button
           onClick={goToPrevPlayer}
-          className="btn p-2"
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
+          disabled={players.length <= 1}
+          className="btn-secondary p-2 w-12 h-12 flex items-center justify-center font-bold text-xl disabled:opacity-50 disabled:cursor-not-allowed"
+          whileHover={players.length > 1 ? { scale: 1.1 } : {}}
+          whileTap={players.length > 1 ? { scale: 0.9 } : {}}
+          layout
         >
           ←
         </motion.button>
 
-        <div className="text-center flex items-center gap-3">
-          <PlayerAvatar name={currentPlayer.nickname} colorIndex={currentPlayerIndex} size="md" />
-          <div>
+        <div className="text-center flex flex-col items-center gap-1 min-w-[160px]">
+          <div className="flex items-center gap-3">
+            <PlayerAvatar name={currentPlayer.nickname} colorIndex={currentPlayerIndex} size="md" />
             <p className="text-xl font-bold">
               {currentPlayer.nickname}
               {isMyList && <span className="text-muted text-sm ml-2">(you)</span>}
             </p>
-            <p className="text-sm text-muted">
-              {currentPlayerIndex + 1} of {players.length}
-            </p>
           </div>
+          <p className="text-xs text-muted font-mono tracking-wider">
+            {currentPlayerIndex + 1} OF {players.length}
+          </p>
         </div>
 
         <motion.button
           onClick={goToNextPlayer}
-          className="btn p-2"
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
+          disabled={players.length <= 1}
+          className="btn-secondary p-2 w-12 h-12 flex items-center justify-center font-bold text-xl disabled:opacity-50 disabled:cursor-not-allowed"
+          whileHover={players.length > 1 ? { scale: 1.1 } : {}}
+          whileTap={players.length > 1 ? { scale: 0.9 } : {}}
+          layout
         >
           →
         </motion.button>
       </motion.div>
 
-      {/* Rankings Card */}
+      {/* Rankings List */}
       <AnimatePresence mode="wait">
         <motion.div
           key={currentPlayer.id}
-          ref={rankingRef}
           initial={{ opacity: 0, x: 50 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -50 }}
           transition={transitions.default}
-          className="card mb-6 bg-white"
+          className="w-full flex justify-center"
         >
-          <div className="card w-full max-w-sm">
-            <div className="card-header text-center">
-              <h3 className="font-bold">{currentPlayer.nickname}'s Rankings</h3>
-            </div>
+          {/* Screenshot Wrapper - added padding to prevent cut-off */}
+          <div ref={rankingRef} className="w-full max-w-sm bg-white p-4 rounded-xl">
             <RankingList
               rankings={currentPlayer.rankings}
-              items={room.items || []} // Assuming room.items exists or is derived
+              items={room.items || []}
               itemsPerGame={room.config.itemsPerGame}
-              showHeader={false}
+              showHeader={true}
+              headerTitle={`${currentPlayer.nickname}'s Rankings`}
               animate={true}
             />
-          </div>
 
-          <div className="text-center mt-4 pt-4 border-t border-neutral-200">
-            <p className="text-xs text-muted">rankeverything.com • Room {room.id}</p>
+            <div className="text-center mt-4">
+              <p className="text-xs text-muted font-mono uppercase">{window.location.host}</p>
+            </div>
           </div>
         </motion.div>
       </AnimatePresence>
@@ -185,18 +187,18 @@ export default function RevealScreen({ room, playerId, isHost, sendMessage }: Re
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="flex flex-col gap-3 mt-auto"
+        className="flex flex-col gap-3 w-full"
       >
         <motion.button
           onClick={handleScreenshot}
-          className="btn"
+          className="btn-secondary w-full"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
-          📸 Save Screenshot
+          📸 Share Rankings
         </motion.button>
 
-        <div className="flex gap-3">
+        <div className="flex gap-3 w-full">
           <motion.button
             onClick={handlePlayAgain}
             className="btn-primary flex-1"
@@ -207,7 +209,7 @@ export default function RevealScreen({ room, playerId, isHost, sendMessage }: Re
           </motion.button>
           <motion.button
             onClick={handleExit}
-            className="btn flex-1"
+            className="btn-secondary flex-1"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >

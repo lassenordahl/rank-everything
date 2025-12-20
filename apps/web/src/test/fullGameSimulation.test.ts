@@ -187,6 +187,14 @@ describe('Full Game Simulations', () => {
         if (!player) break;
         const result = sim.submitItem(player.id, `Item ${i + 1}`);
         expect(result.success).toBe(true);
+
+        // Everyone ranks the item
+        if (result.itemId) {
+          const itemId = result.itemId;
+          sim.getRoom().players.forEach((p) => {
+            sim.rankItem(p.id, itemId, i + 1);
+          });
+        }
       }
 
       sim.assertStatus('ended');
@@ -236,6 +244,14 @@ describe('Full Game Simulations', () => {
       for (let i = 0; i < 10; i++) {
         const result = sim.submitItem('host-player', `Item ${i + 1}`);
         expect(result.success).toBe(true);
+
+        // Host and others rank
+        if (result.itemId) {
+          const itemId = result.itemId;
+          sim.getRoom().players.forEach((p) => {
+            sim.rankItem(p.id, itemId, i + 1);
+          });
+        }
       }
 
       sim.assertStatus('ended');
@@ -459,7 +475,14 @@ describe('Full Game Simulations', () => {
       for (let i = 0; i < 10; i++) {
         const player = sim.getCurrentTurnPlayer();
         if (!player) break;
-        sim.submitItem(player.id, `Item ${i + 1}`);
+        const res = sim.submitItem(player.id, `Item ${i + 1}`);
+
+        if (res.itemId) {
+          const itemId = res.itemId;
+          sim.getRoom().players.forEach((p) => {
+            sim.rankItem(p.id, itemId, i + 1);
+          });
+        }
       }
 
       const result = sim.getResult();

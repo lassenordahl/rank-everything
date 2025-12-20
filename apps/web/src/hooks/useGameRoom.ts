@@ -77,6 +77,13 @@ export function useGameRoom(code: string) {
         });
       }
 
+      // Handle game ended
+      if (event.type === 'game_ended') {
+        console.log(`[useGameRoom] Game ended, re-fetching room to get final state`);
+        // Force immediate refetch to ensure we have the 'ended' status
+        queryClient.invalidateQueries({ queryKey: ['room', code] });
+      }
+
       // Handle Navigation
       if (event.type === 'game_started') {
         // Optimistically update status before nav to prevent flash?
