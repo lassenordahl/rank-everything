@@ -5,9 +5,10 @@ import { useGameRoom } from '../hooks/useGameRoom';
 import { useJoinRoom, useStartGame } from '../hooks/useGameMutations';
 import { MAX_NICKNAME_LENGTH } from '@rank-everything/validation';
 import { COPY } from '../lib/copy';
-import { animations, transitions } from '../lib/design-tokens';
+import { transitions } from '../lib/design-tokens';
 import { PlayerList, RoomCodeDisplay, Input } from './ui';
 import QRCodeModal from './QRCodeModal';
+import { AnimatedBackground } from './AnimatedBackground';
 
 export default function RoomLobby() {
   const { code } = useParams<{ code: string }>();
@@ -69,221 +70,238 @@ export default function RoomLobby() {
   // Loading state
   if (!room) {
     return (
-      <div className="min-h-full flex items-center justify-center">
-        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-muted">
-          {COPY.pending.loading}
-        </motion.p>
-      </div>
+      <>
+        <AnimatedBackground />
+        <div className="relative z-10 min-h-full flex items-center justify-center">
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-black/70 font-medium"
+          >
+            {COPY.pending.loading}
+          </motion.p>
+        </div>
+      </>
     );
   }
 
   // Not joined state - Show Join Form
   if (!isJoined) {
     return (
-      <div className="min-h-full flex flex-col items-center justify-center p-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={transitions.default}
-          className="card w-full max-w-sm"
-        >
-          <div className="text-center mb-6">
-            <p className="text-muted mb-2">{COPY.labels.joinRoomTitle}</p>
-            <h1 className="text-4xl font-bold tracking-widest font-mono mb-4">{code}</h1>
-            <p>{COPY.labels.enterNickname}</p>
-          </div>
+      <>
+        <AnimatedBackground />
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6">
+          <motion.div
+            layout
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={transitions.default}
+            className="w-full max-w-sm flex flex-col gap-10"
+          >
+            <div className="text-center">
+              <p className="text-xs font-mono uppercase tracking-[0.2em] text-black/70 font-medium mb-4">
+                {COPY.labels.joinRoomTitle}
+              </p>
+              <h1 className="text-6xl font-black tracking-tighter uppercase mb-2">{code}</h1>
+              <p className="font-mono text-xs uppercase text-black/70 font-medium">
+                {COPY.labels.enterNickname}
+              </p>
+            </div>
 
-          <div className="flex flex-col gap-4">
-            <Input
-              placeholder={COPY.placeholders.nickname}
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              maxLength={MAX_NICKNAME_LENGTH}
-              autoFocus
-              className="text-center text-lg" // Keeping style but using shared component
-            />
+            <div className="flex flex-col gap-4">
+              <Input
+                placeholder={COPY.placeholders.nickname}
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                maxLength={MAX_NICKNAME_LENGTH}
+                autoFocus
+                className="text-center text-lg bg-white border-black"
+              />
 
-            <AnimatePresence>
-              {error && (
-                <motion.div
-                  variants={animations.fadeInUp}
-                  initial="initial"
-                  animate="animate"
-                  exit="exit"
-                  transition={transitions.default}
-                  className="p-3 border-2 border-red-500 bg-red-50 text-red-500 text-sm text-center"
-                >
-                  {error}
-                </motion.div>
-              )}
-            </AnimatePresence>
+              <AnimatePresence>
+                {error && (
+                  <motion.div
+                    layout
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 10 }}
+                    className="p-3 border-2 border-red-500 bg-red-50 text-red-500 text-xs font-mono font-bold uppercase"
+                  >
+                    {error}
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-            <motion.button
-              onClick={handleJoin}
-              disabled={!nickname.trim() || joinRoom.isPending}
-              className="btn-primary"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              {joinRoom.isPending ? COPY.pending.joining : COPY.buttons.join}
-            </motion.button>
-          </div>
-        </motion.div>
-      </div>
+              <motion.button
+                onClick={handleJoin}
+                disabled={!nickname.trim() || joinRoom.isPending}
+                className="btn-primary"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                {joinRoom.isPending ? COPY.pending.joining : COPY.buttons.join}
+              </motion.button>
+            </div>
+          </motion.div>
+        </div>
+      </>
     );
   }
 
   return (
-    <div className="min-h-full flex flex-col items-center p-6 max-w-xl mx-auto w-full justify-center gap-6">
-      {/* Room Code */}
-      <RoomCodeDisplay
-        code={code || ''}
-        showCopyButton={true}
-        showQRButton={true}
-        onQRClick={() => setShowQRModal(true)}
-      />
+    <>
+      <AnimatedBackground />
+      <div className="relative z-10 flex-1 flex flex-col items-center p-6 max-w-xl mx-auto w-full justify-center gap-8 py-12">
+        {/* Room Code */}
+        <RoomCodeDisplay
+          code={code || ''}
+          showCopyButton={true}
+          showQRButton={true}
+          onQRClick={() => setShowQRModal(true)}
+        />
 
-      {/* QR Code Modal */}
-      <QRCodeModal
-        roomCode={code || ''}
-        isOpen={showQRModal}
-        onClose={() => setShowQRModal(false)}
-      />
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              layout
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              className="w-full max-w-sm p-3 border-2 border-red-500 bg-red-50 text-red-500 text-xs font-mono font-bold uppercase text-center"
+            >
+              {error}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-      <AnimatePresence>
-        {error && (
+        <div className="w-full max-w-sm flex flex-col gap-8">
+          {/* Players */}
+          <PlayerList players={room?.players || []} hostId={room?.hostPlayerId} showCount={true} />
+        </div>
+
+        {/* Settings (host only - editable) */}
+        {isHost && (
           <motion.div
-            variants={animations.fadeInUp}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            transition={transitions.default}
-            className="w-full max-w-sm p-3 border-2 border-red-500 bg-red-50 text-red-500 text-sm text-center"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...transitions.default, delay: 0.2 }}
+            className="card card-shadow w-full max-w-sm"
           >
-            {error}
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <h2 className="font-bold mb-4">{COPY.labels.settings}</h2>
+            <div className="space-y-4 text-sm">
+              {/* Timer Toggle */}
+              <div className="flex justify-between items-center">
+                <span>{COPY.settings.timerEnabled}</span>
+                <motion.button
+                  onClick={() => {
+                    sendMessage(
+                      JSON.stringify({
+                        type: 'update_config',
+                        config: { timerEnabled: !room.config.timerEnabled },
+                      })
+                    );
+                  }}
+                  className={`px-3 py-1 text-xs font-bold border-2 transition-colors ${
+                    room.config.timerEnabled
+                      ? 'bg-green-500 border-green-500 text-white'
+                      : 'bg-white border-black text-black'
+                  }`}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  {room.config.timerEnabled ? 'ON' : 'OFF'}
+                </motion.button>
+              </div>
 
-      {/* Players */}
-      <PlayerList players={room?.players || []} hostId={room?.hostPlayerId} showCount={true} />
+              {/* Timer Duration (only if timer enabled) */}
+              {room.config.timerEnabled && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="flex justify-between items-center"
+                >
+                  <span>{COPY.settings.timerDuration}</span>
+                  <select
+                    value={room.config.timerDuration}
+                    onChange={(e) => {
+                      sendMessage(
+                        JSON.stringify({
+                          type: 'update_config',
+                          config: { timerDuration: parseInt(e.target.value, 10) },
+                        })
+                      );
+                    }}
+                    className="px-2 py-1 border-2 border-black text-sm rounded-none bg-white"
+                  >
+                    <option value={30}>30s</option>
+                    <option value={60}>60s</option>
+                    <option value={90}>90s</option>
+                    <option value={120}>120s</option>
+                  </select>
+                </motion.div>
+              )}
 
-      {/* Settings (host only - editable) */}
-      {isHost && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...transitions.default, delay: 0.2 }}
-          className="card w-full max-w-sm"
-        >
-          <h2 className="font-bold mb-4">{COPY.labels.settings}</h2>
-          <div className="space-y-4 text-sm">
-            {/* Timer Toggle */}
-            <div className="flex justify-between items-center">
-              <span>{COPY.settings.timerEnabled}</span>
-              <motion.button
-                onClick={() => {
-                  sendMessage(
-                    JSON.stringify({
-                      type: 'update_config',
-                      config: { timerEnabled: !room.config.timerEnabled },
-                    })
-                  );
-                }}
-                className={`px-3 py-1 text-xs font-bold border-2 transition-colors ${
-                  room.config.timerEnabled
-                    ? 'bg-green-500 border-green-500 text-white'
-                    : 'bg-white border-black text-black'
-                }`}
-                whileTap={{ scale: 0.95 }}
-              >
-                {room.config.timerEnabled ? 'ON' : 'OFF'}
-              </motion.button>
-            </div>
-
-            {/* Timer Duration (only if timer enabled) */}
-            {room.config.timerEnabled && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="flex justify-between items-center"
-              >
-                <span>{COPY.settings.timerDuration}</span>
+              {/* Submission Mode */}
+              <div className="flex justify-between items-center">
+                <span>{COPY.settings.submissionMode}</span>
                 <select
-                  value={room.config.timerDuration}
+                  value={room.config.submissionMode}
                   onChange={(e) => {
                     sendMessage(
                       JSON.stringify({
                         type: 'update_config',
-                        config: { timerDuration: parseInt(e.target.value, 10) },
+                        config: { submissionMode: e.target.value },
                       })
                     );
                   }}
-                  className="px-2 py-1 border-2 border-black text-sm rounded-none"
+                  className="px-2 py-1 border-2 border-black text-sm rounded-none bg-white"
                 >
-                  <option value={30}>30s</option>
-                  <option value={60}>60s</option>
-                  <option value={90}>90s</option>
-                  <option value={120}>120s</option>
+                  <option value="round-robin">{COPY.settings.roundRobin}</option>
+                  <option value="host-only">{COPY.settings.hostOnly}</option>
                 </select>
-              </motion.div>
-            )}
-
-            {/* Submission Mode */}
-            <div className="flex justify-between items-center">
-              <span>{COPY.settings.submissionMode}</span>
-              <select
-                value={room.config.submissionMode}
-                onChange={(e) => {
-                  sendMessage(
-                    JSON.stringify({
-                      type: 'update_config',
-                      config: { submissionMode: e.target.value },
-                    })
-                  );
-                }}
-                className="px-2 py-1 border-2 border-black text-sm rounded-none"
-              >
-                <option value="round-robin">{COPY.settings.roundRobin}</option>
-                <option value="host-only">{COPY.settings.hostOnly}</option>
-              </select>
+              </div>
             </div>
-          </div>
-        </motion.div>
-      )}
+          </motion.div>
+        )}
 
-      {/* Start Button (host only) */}
-      {isHost && (
-        <motion.button
-          onClick={handleStartGame}
-          disabled={!(room && room.players.length >= 1) || startGame.isPending}
-          className="btn-primary hover:shadow-[4px_4px_0_0_#22c55e]"
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...transitions.default, delay: 0.3 }}
-        >
-          {startGame.isPending
-            ? COPY.pending.starting
-            : room && room.players.length >= 1
-              ? COPY.buttons.startGame
-              : COPY.labels.needPlayers}
-        </motion.button>
-      )}
+        {/* Start Button (host only) */}
+        {isHost && (
+          <motion.button
+            onClick={handleStartGame}
+            disabled={!(room && room.players.length >= 1) || startGame.isPending}
+            className="btn-primary"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...transitions.default, delay: 0.3 }}
+          >
+            {startGame.isPending
+              ? COPY.pending.starting
+              : room && room.players.length >= 1
+                ? COPY.buttons.startGame
+                : COPY.labels.needPlayers}
+          </motion.button>
+        )}
 
-      {!isHost && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="badge-waiting"
-        >
-          <span className="animate-pulse">●</span>
-          {COPY.labels.waitingForHost}
-        </motion.div>
-      )}
-    </div>
+        {!isHost && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="badge-waiting"
+          >
+            <span className="animate-pulse">●</span>
+            {COPY.labels.waitingForHost}
+          </motion.div>
+        )}
+
+        <QRCodeModal
+          roomCode={code || ''}
+          isOpen={showQRModal}
+          onClose={() => setShowQRModal(false)}
+        />
+      </div>
+    </>
   );
 }

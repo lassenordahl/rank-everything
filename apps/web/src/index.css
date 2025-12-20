@@ -46,17 +46,17 @@ body {
   @apply opacity-50 cursor-not-allowed;
 }
 
-/* Primary Button: Black -> Dark Gray */
+/* Primary Button: White with black shadow, offset to appear centered */
 .btn-primary {
-  @apply btn bg-black text-white;
+  @apply btn bg-white text-black shadow-[4px_4px_0_0_#000000] -translate-x-[2px] -translate-y-[2px];
 }
 
 .btn-primary:hover {
-  @apply bg-neutral-900 shadow-[4px_4px_0_0_#666666] -translate-x-[2px] -translate-y-[2px] border-black;
+  @apply bg-neutral-50;
 }
 
 .btn-primary:active {
-  @apply shadow-none translate-x-0 translate-y-0 scale-100;
+  @apply shadow-[2px_2px_0_0_#000000] translate-x-0 translate-y-0;
 }
 
 /* Secondary Button: White -> Offset Shadow */
@@ -90,7 +90,7 @@ body {
 }
 
 .input:focus {
-  @apply ring-2 ring-black ring-offset-2;
+  @apply ring-2 ring-black ring-offset-2 ring-offset-white;
 }
 
 /* ============================================
@@ -99,6 +99,10 @@ body {
 
 .card {
   @apply border-2 border-black p-6 bg-white;
+}
+
+.card-shadow {
+  @apply shadow-[4px_4px_0_0_#000000];
 }
 
 .card-header {
@@ -122,11 +126,11 @@ body {
 }
 
 .badge-active {
-  @apply badge bg-red-500 text-white font-bold;
+  @apply badge bg-white text-black font-bold border-2 border-black shadow-[3px_3px_0_0_#000];
 }
 
 .badge-waiting {
-  @apply badge bg-blue-100 text-blue-700;
+  @apply badge bg-white text-black border-2 border-black shadow-[3px_3px_0_0_#000];
 }
 
 .badge-success {

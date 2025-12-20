@@ -37,7 +37,9 @@ test.describe('Production Smoke Tests', () => {
       setupLogging(page, 'Home');
       await page.goto('/');
 
-      await expect(page.getByText(COPY.appTitle)).toBeVisible({ timeout: 10000 });
+      // Title is displayed as "RANK" and "EVERYTHING" on separate lines
+      await expect(page.getByText('RANK')).toBeVisible({ timeout: 10000 });
+      await expect(page.getByText('EVERYTHING')).toBeVisible({ timeout: 10000 });
       await expect(page.getByRole('button', { name: COPY.buttons.createRoom })).toBeVisible();
       await expect(page.getByRole('button', { name: COPY.buttons.joinRoom })).toBeVisible();
     });
@@ -265,7 +267,16 @@ test.describe('Production Smoke Tests', () => {
         await expect(hostPage.getByText(new RegExp(`${COPY.labels.players}.*2`, 'i'))).toBeVisible({
           timeout: 15000,
         });
-        console.log('Guest joined for migration');
+
+        // CRITICAL: Also wait for the GUEST to see 2 players
+        // This ensures their WebSocket is connected and receiving updates
+        // Without this, the guest may miss the room_updated event when host leaves
+        await expect(guestPage.getByText(new RegExp(`${COPY.labels.players}.*2`, 'i'))).toBeVisible(
+          {
+            timeout: 15000,
+          }
+        );
+        console.log('Guest joined for migration (WebSocket confirmed)');
 
         // Host leaves
         console.log('Original host leaving...');
@@ -399,8 +410,8 @@ test.describe('Mobile Responsiveness', () => {
 
     await page.goto('/');
 
-    // Homepage should be visible
-    await expect(page.getByText(COPY.appTitle)).toBeVisible();
+    // Homepage should be visible (title is "RANK" and "EVERYTHING" on separate lines)
+    await expect(page.getByText('RANK')).toBeVisible();
 
     // Buttons should be tappable
     const createButton = page.getByRole('button', { name: COPY.buttons.createRoom });

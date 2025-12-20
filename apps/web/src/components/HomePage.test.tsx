@@ -39,8 +39,9 @@ describe('HomePage', () => {
     it('should render the home page with title and buttons', () => {
       renderWithProviders(<HomePage />);
 
-      expect(screen.getByText('Rank Everything')).toBeInTheDocument();
-      expect(screen.getByText('A party game for ranking anything')).toBeInTheDocument();
+      // Title is split across br tag: "RANK<br/>EVERYTHING"
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/RANK.*EVERYTHING/i);
+      expect(screen.getByText('Pick a number!')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /create room/i })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /join room/i })).toBeInTheDocument();
     });

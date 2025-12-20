@@ -37,7 +37,7 @@ export function RoomCodeDisplay({
 
   return (
     <div className="text-center py-2">
-      <p className="text-xs text-neutral-500 uppercase tracking-wide mb-1">
+      <p className="text-xs text-black/70 font-medium uppercase tracking-wide mb-1">
         {COPY.labels.roomCode}
       </p>
       <p className="text-4xl font-bold tracking-[0.2em] font-mono mb-3">{code}</p>
@@ -47,8 +47,8 @@ export function RoomCodeDisplay({
           {showCopyButton && (
             <motion.button
               onClick={handleCopy}
-              className="text-xs py-2 px-3 border-2 border-black bg-white flex items-center gap-2 font-bold transition-all hover:shadow-[3px_3px_0_0_#000] hover:-translate-x-[1px] hover:-translate-y-[1px]"
-              whileTap={{ scale: 0.98, x: 0, y: 0, boxShadow: 'none' }}
+              className="text-xs py-2 px-3 border-2 border-black bg-white flex items-center gap-2 font-bold shadow-[3px_3px_0_0_#000]"
+              whileTap={{ scale: 0.98 }}
             >
               {copied ? `✓ ${COPY.buttons.copiedLink}` : `🔗 ${COPY.buttons.copyLink}`}
             </motion.button>
@@ -56,8 +56,8 @@ export function RoomCodeDisplay({
           {showQRButton && onQRClick && (
             <motion.button
               onClick={onQRClick}
-              className="text-xs py-2 px-3 border-2 border-black bg-white flex items-center gap-2 font-bold transition-all hover:shadow-[3px_3px_0_0_#000] hover:-translate-x-[1px] hover:-translate-y-[1px]"
-              whileTap={{ scale: 0.98, x: 0, y: 0, boxShadow: 'none' }}
+              className="text-xs py-2 px-3 border-2 border-black bg-white flex items-center gap-2 font-bold shadow-[3px_3px_0_0_#000]"
+              whileTap={{ scale: 0.98 }}
             >
               📲 {COPY.buttons.shareQR}
             </motion.button>

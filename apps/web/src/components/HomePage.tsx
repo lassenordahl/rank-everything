@@ -4,8 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useCreateRoom, useJoinRoom } from '../hooks/useGameMutations';
 import { MAX_NICKNAME_LENGTH, ROOM_CODE_LENGTH } from '@rank-everything/validation';
 import { COPY } from '../lib/copy';
-import { animations, transitions } from '../lib/design-tokens';
+import { transitions } from '../lib/design-tokens';
 import { Input } from './ui';
+import { AnimatedBackground } from './AnimatedBackground';
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -62,215 +63,191 @@ export default function HomePage() {
     );
   };
 
-  if (mode === 'home') {
-    return (
-      <div className="min-h-full flex flex-col items-center justify-center p-6 gap-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={transitions.default}
-          className="text-center"
-        >
-          <h1 className="text-5xl font-bold mb-2">{COPY.appTitle}</h1>
-          <p className="text-muted">{COPY.appTagline}</p>
-        </motion.div>
-
-        <AnimatePresence>
-          {error && (
-            <motion.div
-              variants={animations.fadeInUp}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              transition={transitions.default}
-              className="w-full max-w-xs p-3 border-2 border-red-500 bg-red-50 text-red-500 text-sm text-center"
-            >
-              {error}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...transitions.default, delay: 0.1 }}
-          className="flex flex-col gap-4 w-full max-w-xs"
-        >
-          <motion.button
-            onClick={() => {
-              setError(null);
-              setMode('create');
+  return (
+    <>
+      <AnimatedBackground />
+      <div className="relative z-10 flex-1 w-full flex flex-col items-center justify-center p-6 sm:p-12">
+        <div className="w-full max-w-sm">
+          {/* Main Content Area - Open Layout */}
+          <motion.div
+            layout
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              ...transitions.spring,
+              layout: { duration: 0.3, type: 'spring', stiffness: 300, damping: 25 },
             }}
-            className="btn-secondary"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            className="relative"
           >
-            {COPY.buttons.createRoom}
-          </motion.button>
+            <AnimatePresence mode="wait">
+              {mode === 'home' && (
+                <motion.div
+                  key="home"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={transitions.default}
+                  className="flex flex-col gap-12"
+                >
+                  <div className="text-center">
+                    <motion.h1
+                      className="text-6xl sm:text-7xl font-black mb-1 tracking-tighter uppercase leading-[0.8]"
+                      layoutId="app-title"
+                    >
+                      RANK
+                      <br />
+                      EVERYTHING
+                    </motion.h1>
+                    <p className="font-mono text-xs uppercase tracking-[0.2em] text-black/70 font-medium mt-4">
+                      {COPY.appTagline}
+                    </p>
+                  </div>
 
-          <motion.button
-            onClick={() => {
-              setError(null);
-              setMode('join');
-            }}
-            className="btn-secondary"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            {COPY.buttons.joinRoom}
-          </motion.button>
-        </motion.div>
-      </div>
-    );
-  }
+                  <div className="flex flex-col gap-3">
+                    <motion.button
+                      onClick={() => setMode('create')}
+                      className="btn-primary"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      {COPY.buttons.createRoom}
+                    </motion.button>
 
-  if (mode === 'create') {
-    return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={transitions.default}
-        className="min-h-full flex flex-col items-center justify-center p-6 gap-8"
-      >
-        <motion.h2
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={transitions.default}
-          className="text-3xl font-bold"
-        >
-          {COPY.labels.createRoomTitle}
-        </motion.h2>
+                    <motion.button
+                      onClick={() => setMode('join')}
+                      className="btn-secondary"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      {COPY.buttons.joinRoom}
+                    </motion.button>
+                  </div>
+                </motion.div>
+              )}
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...transitions.default, delay: 0.1 }}
-          className="flex flex-col gap-4 w-full max-w-xs"
-        >
-          <Input
-            placeholder={COPY.placeholders.nickname}
-            value={nickname}
-            onChange={(e) => setNickname(e.target.value)}
-            maxLength={MAX_NICKNAME_LENGTH}
-            autoFocus
-          />
+              {mode === 'create' && (
+                <motion.div
+                  key="create"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={transitions.default}
+                  className="flex flex-col gap-8 text-center"
+                >
+                  <h2 className="text-4xl font-black uppercase tracking-tighter leading-none">
+                    {COPY.labels.createRoomTitle}
+                  </h2>
 
+                  <div className="flex flex-col gap-4">
+                    <Input
+                      placeholder={COPY.placeholders.nickname}
+                      value={nickname}
+                      onChange={(e) => setNickname(e.target.value)}
+                      maxLength={MAX_NICKNAME_LENGTH}
+                      autoFocus
+                      className="text-center bg-white border-black"
+                    />
+
+                    <motion.button
+                      onClick={handleCreateRoom}
+                      disabled={!nickname.trim() || createRoom.isPending}
+                      className="btn-primary"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      {createRoom.isPending ? COPY.pending.creating : COPY.buttons.create}
+                    </motion.button>
+
+                    <motion.button
+                      onClick={() => setMode('home')}
+                      className="btn-secondary"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      {COPY.buttons.back}
+                    </motion.button>
+                  </div>
+                </motion.div>
+              )}
+
+              {mode === 'join' && (
+                <motion.div
+                  key="join"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={transitions.default}
+                  className="flex flex-col gap-8 text-center"
+                >
+                  <h2 className="text-4xl font-black uppercase tracking-tighter leading-none">
+                    {COPY.labels.joinRoomTitle}
+                  </h2>
+
+                  <div className="flex flex-col gap-4">
+                    <Input
+                      placeholder={COPY.placeholders.roomCode}
+                      value={joinCode}
+                      onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                      className="text-center text-3xl tracking-[0.2em] uppercase font-mono bg-white border-black"
+                      maxLength={ROOM_CODE_LENGTH}
+                      autoFocus
+                    />
+
+                    <Input
+                      placeholder={COPY.placeholders.nickname}
+                      value={nickname}
+                      onChange={(e) => setNickname(e.target.value)}
+                      maxLength={MAX_NICKNAME_LENGTH}
+                      className="text-center bg-white border-black"
+                    />
+
+                    <motion.button
+                      onClick={handleJoinRoom}
+                      disabled={
+                        !nickname.trim() ||
+                        joinCode.length !== ROOM_CODE_LENGTH ||
+                        joinRoom.isPending
+                      }
+                      className="btn-primary"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      {joinRoom.isPending ? COPY.pending.joining : COPY.buttons.join}
+                    </motion.button>
+
+                    <motion.button
+                      onClick={() => setMode('home')}
+                      className="btn-secondary"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      {COPY.buttons.back}
+                    </motion.button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+
+          {/* Global Error Display */}
           <AnimatePresence>
             {error && (
               <motion.div
-                variants={animations.fadeInUp}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                transition={transitions.default}
-                className="p-3 border-2 border-red-500 bg-red-50 text-red-500 text-sm text-center"
+                layout
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="mt-8 p-4 bg-red-500 text-white font-mono text-[10px] font-bold uppercase tracking-tight border-2 border-black shadow-[6px_6px_0_0_rgba(0,0,0,1)]"
               >
-                {error}
+                <div className="flex justify-between items-center">
+                  <span>Error: {error}</span>
+                  <button onClick={() => setError(null)}>✕</button>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
-
-          <motion.button
-            onClick={handleCreateRoom}
-            disabled={!nickname.trim() || createRoom.isPending}
-            className="btn-primary hover:shadow-[4px_4px_0_0_#22c55e]"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            {createRoom.isPending ? COPY.pending.creating : COPY.buttons.create}
-          </motion.button>
-
-          <motion.button
-            onClick={() => {
-              setError(null);
-              setMode('home');
-            }}
-            className="btn-secondary"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            {COPY.buttons.back}
-          </motion.button>
-        </motion.div>
-      </motion.div>
-    );
-  }
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={transitions.default}
-      className="min-h-full flex flex-col items-center justify-center p-6 gap-8"
-    >
-      <motion.h2
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={transitions.default}
-        className="text-3xl font-bold"
-      >
-        {COPY.labels.joinRoomTitle}
-      </motion.h2>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ ...transitions.default, delay: 0.1 }}
-        className="flex flex-col gap-4 w-full max-w-xs"
-      >
-        <Input
-          placeholder={COPY.placeholders.roomCode}
-          value={joinCode}
-          onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-          className="text-center text-2xl tracking-widest uppercase font-mono"
-          maxLength={ROOM_CODE_LENGTH}
-          autoFocus
-        />
-
-        <Input
-          placeholder={COPY.placeholders.nickname}
-          value={nickname}
-          onChange={(e) => setNickname(e.target.value)}
-          maxLength={MAX_NICKNAME_LENGTH}
-        />
-
-        <AnimatePresence>
-          {error && (
-            <motion.div
-              variants={animations.fadeInUp}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              transition={transitions.default}
-              className="p-3 border-2 border-red-500 bg-red-50 text-red-500 text-sm text-center"
-            >
-              {error}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <motion.button
-          onClick={handleJoinRoom}
-          disabled={!nickname.trim() || joinCode.length !== ROOM_CODE_LENGTH || joinRoom.isPending}
-          className="btn-primary"
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          {joinRoom.isPending ? COPY.pending.joining : COPY.buttons.join}
-        </motion.button>
-
-        <motion.button
-          onClick={() => {
-            setError(null);
-            setMode('home');
-          }}
-          className="btn-secondary"
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          {COPY.buttons.back}
-        </motion.button>
-      </motion.div>
-    </motion.div>
+        </div>
+      </div>
+    </>
   );
 }

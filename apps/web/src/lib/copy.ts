@@ -8,7 +8,7 @@
 export const COPY = {
   // Homepage
   appTitle: 'Rank Everything',
-  appTagline: 'A party game for ranking anything',
+  appTagline: 'Pick a number!',
 
   // Buttons
   buttons: {

@@ -8,7 +8,6 @@
 import type { Player } from '@rank-everything/shared-types';
 import { PlayerAvatar } from './PlayerAvatar';
 import { COPY } from '../../lib/copy';
-import { componentClasses } from '../../lib/design-tokens';
 
 export interface PlayerListProps {
   /** List of players */
@@ -21,8 +20,8 @@ export interface PlayerListProps {
 
 export function PlayerList({ players, hostId, showCount = true }: PlayerListProps) {
   return (
-    <div className={`${componentClasses.card} w-full max-w-sm`}>
-      <div className={componentClasses.cardHeader}>
+    <div className="border-2 border-black bg-white card-shadow w-full max-w-sm">
+      <div className="border-b-2 border-black px-3 py-2">
         <h2 className="text-xs font-bold uppercase tracking-wide">
           {COPY.labels.players} {showCount && `(${players.length})`}
         </h2>

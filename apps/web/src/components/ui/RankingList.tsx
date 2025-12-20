@@ -8,7 +8,6 @@
 import { motion } from 'framer-motion';
 import type { Item } from '@rank-everything/shared-types';
 import { RankingSlot } from './RankingSlot';
-import { componentClasses } from '../../lib/design-tokens';
 
 export interface RankingListProps {
   /** Player rankings: itemId -> rank */
@@ -54,9 +53,9 @@ export function RankingList({
   const slots = Array.from({ length: itemsPerGame }, (_, i) => i + 1);
 
   return (
-    <div className={`${componentClasses.card} w-full max-w-sm mx-auto`}>
+    <div className="border-2 border-black bg-white card-shadow w-full max-w-sm mx-auto">
       {showHeader && (
-        <div className={componentClasses.cardHeader}>
+        <div className="border-b-2 border-black px-3 py-2">
           <h3 className="font-bold text-xs uppercase tracking-wide">{headerTitle}</h3>
         </div>
       )}

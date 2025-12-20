@@ -99,7 +99,7 @@ export default function RevealScreen({ room, playerId, isHost, sendMessage }: Re
   };
 
   return (
-    <div className="min-h-full flex flex-col justify-center items-center p-6 gap-6 w-full max-w-lg mx-auto">
+    <div className="relative z-10 min-h-full flex flex-col justify-center items-center p-6 gap-6 w-full max-w-lg mx-auto">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -108,7 +108,7 @@ export default function RevealScreen({ room, playerId, isHost, sendMessage }: Re
         className="text-center"
       >
         <h1 className="text-3xl font-bold mb-2">Game Over!</h1>
-        <p className="text-muted">Room {room.id}</p>
+        <p className="text-black/70 font-medium">Room {room.id}</p>
       </motion.div>
 
       {/* Player Selector */}

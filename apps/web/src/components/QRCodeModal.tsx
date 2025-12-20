@@ -48,14 +48,8 @@ export default function QRCodeModal({ roomCode, isOpen, onClose }: QRCodeModalPr
   if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
-      onClick={onClose}
-    >
-      <div
-        className="flex flex-col items-center justify-center p-8 max-w-lg w-full"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+      <div className="flex flex-col items-center justify-center p-8 max-w-lg w-full">
         {/* Room Code */}
         <h1 className="text-5xl font-bold tracking-widest text-white mb-4">{roomCode}</h1>
 
@@ -63,7 +57,7 @@ export default function QRCodeModal({ roomCode, isOpen, onClose }: QRCodeModalPr
         <p className="text-white/70 text-lg mb-6">{COPY.labels.scanToJoin}</p>
 
         {/* QR Code */}
-        <div className="bg-white p-4 rounded-lg shadow-2xl w-full max-w-[400px] aspect-square flex items-center justify-center">
+        <div className="bg-white p-4 border-2 border-black w-full max-w-[400px] aspect-square flex items-center justify-center">
           {isLoading ? (
             <div className="w-full h-full flex items-center justify-center">
               <div className="animate-pulse text-gray-400">Generating...</div>

@@ -10,13 +10,15 @@ function App() {
   usePreloadLLM();
 
   return (
-    <Routes>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/design" element={<DesignShowcase />} />
-      <Route path="/game/:code" element={<GameView />} />
-      <Route path="/reveal/:code" element={<GameView />} />
-      <Route path="/:code" element={<RoomLobby />} />
-    </Routes>
+    <div className="min-h-full flex flex-col">
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/design" element={<DesignShowcase />} />
+        <Route path="/game/:code" element={<GameView />} />
+        <Route path="/reveal/:code" element={<GameView />} />
+        <Route path="/:code" element={<RoomLobby />} />
+      </Routes>
+    </div>
   );
 }
 
