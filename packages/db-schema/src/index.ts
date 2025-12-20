@@ -1,8 +1,28 @@
-// Database schema definitions for Cloudflare D1
+/**
+ * Database Schema Package
+ *
+ * Provides database schema definitions, migration utilities, and seed data
+ * for the Rank Everything application.
+ *
+ * @module @rank-everything/db-schema
+ */
+
+// Re-export types
+export * from './types.js';
+
+// Re-export migration utilities
+export {
+  MigrationRunner,
+  MIGRATIONS_TABLE_SQL,
+  generateChecksum,
+  parseMigrationFilename,
+  createMigrationFilename,
+  createMigrationFile,
+} from './migrations.js';
 
 /**
- * SQL migrations for the global_items table
- * Used for random roll feature
+ * Legacy migrations object (kept for backwards compatibility)
+ * @deprecated Use SQL migration files in /migrations directory instead
  */
 export const migrations = {
   '001_create_global_items': `
@@ -35,14 +55,15 @@ export const migrations = {
 } as const;
 
 /**
- * Get all migrations in order
+ * Get all legacy migrations in order
+ * @deprecated Use loadMigrationsFromDirectory instead
  */
 export function getMigrations(): Array<{ name: string; sql: string }> {
   return Object.entries(migrations).map(([name, sql]) => ({ name, sql }));
 }
 
 /**
- * Seed data for testing
+ * Seed data for testing - 30 items for the global item pool
  */
 export const seedItems = [
   { text: 'A warm cup of coffee on a rainy day', emoji: '☕' },
@@ -84,7 +105,7 @@ export function generateSeedSQL(items: typeof seedItems): string {
   const values = items
     .map(
       (item, i) =>
-        `('seed_${i}', '${item.text.replace(/'/g, "''")}', '${item.emoji}', ${Date.now()})`
+        `('seed_${String(i).padStart(3, '0')}', '${item.text.replace(/'/g, "''")}', '${item.emoji}', ${Date.now()})`
     )
     .join(',\n  ');
 
@@ -94,3 +115,9 @@ export function generateSeedSQL(items: typeof seedItems): string {
       ${values};
   `;
 }
+
+/**
+ * Get the relative path to the migrations directory from package root
+ * The CLI should resolve this relative to the db-schema package location
+ */
+export const MIGRATIONS_DIR_NAME = 'migrations';

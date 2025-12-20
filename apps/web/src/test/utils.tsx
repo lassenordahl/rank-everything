@@ -9,7 +9,9 @@ import type { RenderOptions } from '@testing-library/react';
 import { render } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ConnectionStatusProvider } from '../contexts/ConnectionStatusContext';
 import { PartySocketProvider } from '../contexts/PartySocketContext';
+import { FeatureFlagProvider } from '../contexts/FeatureFlagContext';
 
 // ============================================================================
 // CUSTOM RENDER WITH PROVIDERS
@@ -40,9 +42,17 @@ function TestProviders({ children }: TestProvidersProps) {
     QueryClientProvider,
     { client: queryClient },
     React.createElement(
-      PartySocketProvider,
+      ConnectionStatusProvider,
       null,
-      React.createElement(BrowserRouter, null, children)
+      React.createElement(
+        PartySocketProvider,
+        null,
+        React.createElement(
+          FeatureFlagProvider,
+          null,
+          React.createElement(BrowserRouter, null, children)
+        )
+      )
     )
   );
 }

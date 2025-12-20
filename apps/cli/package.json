@@ -17,17 +17,26 @@
     "db:reset": "tsx src/index.ts db:reset"
   },
   "dependencies": {
-    "@rank-everything/shared-types": "workspace:*",
     "@rank-everything/db-schema": "workspace:*",
-    "commander": "^12.0.0",
+    "@rank-everything/shared-types": "workspace:*",
     "chalk": "^5.3.0",
+    "commander": "^12.0.0",
+    "dotenv": "^16.4.0",
+    "ink": "5.0.1",
+    "ink-big-text": "^1.2.0",
+    "ink-gradient": "^2.0.0",
+    "ink-spinner": "^4.0.0",
     "ora": "^8.0.0",
     "prompts": "^2.4.2",
-    "dotenv": "^16.4.0"
+    "react": "18.3.1"
   },
   "devDependencies": {
+    "@types/ink-big-text": "^1.2.4",
+    "@types/ink-gradient": "^2.0.4",
+    "@types/ink-table": "^1.0.7",
     "@types/node": "^20.0.0",
     "@types/prompts": "^2.4.0",
+    "@types/react": "^18.2.0",
     "tsup": "^8.0.0",
     "tsx": "^4.7.0",
     "typescript": "^5.3.0"

@@ -105,7 +105,8 @@ export type ClientEvent =
   | { type: 'reconnect'; playerId: string }
   | { type: 'skip_turn' }
   | { type: 'reset_room' }
-  | { type: 'update_config'; config: Partial<RoomConfig> };
+  | { type: 'update_config'; config: Partial<RoomConfig> }
+  | { type: 'ping' }; // Heartbeat ping
 
 export type ServerEvent =
   | { type: 'room_updated'; room: Room }
@@ -119,6 +120,7 @@ export type ServerEvent =
   | { type: 'game_ended' }
   | { type: 'room_reset'; room: Room }
   | { type: 'config_updated'; config: RoomConfig }
+  | { type: 'pong' } // Heartbeat pong response
   | { type: 'error'; message: string; code?: string };
 
 // Error codes

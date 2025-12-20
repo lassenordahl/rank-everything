@@ -21,3 +21,6 @@ export * from './Input';
 export * from './GameSubmission';
 export * from './LoadingSpinner';
 export type { PlayerListProps } from './PlayerList';
+
+export { GameStatusBadge } from './GameStatusBadge';
+export type { GameStatusBadgeProps } from './GameStatusBadge';

@@ -15,6 +15,8 @@ import { testCommands } from './commands/test.js';
 import { roomCommands } from './commands/room.js';
 import { deployCommands } from './commands/deploy.js';
 import { docsCommand } from './commands/docs.js';
+import { dashboardCommand } from './commands/dashboard.js';
+import { analyzeCommand } from './commands/analyze.js';
 
 const program = new Command();
 
@@ -52,6 +54,11 @@ db.command('migrate')
   .option('--remote', 'Run on remote/production database')
   .action(dbCommands.migrate);
 
+db.command('migrate:create')
+  .description('Create a new migration file')
+  .argument('<name>', 'Migration name (e.g., "add users table")')
+  .action(dbCommands.createMigration);
+
 db.command('seed')
   .description('Seed database with test data')
   .option('--local', 'Seed local database (default)')
@@ -63,6 +70,7 @@ db.command('reset')
   .option('--seed', 'Also seed with test data')
   .option('--local', 'Reset local database (default)')
   .option('--remote', 'Reset remote/production database')
+  .option('--force', 'Force reset (required for remote)')
   .action(dbCommands.reset);
 
 db.command('inspect')
@@ -152,6 +160,25 @@ program
   .description('Open documentation')
   .argument('[doc]', 'Document to open (cli, api, spec)')
   .action(docsCommand);
+
+// Dashboard command
+program
+  .command('dashboard')
+  .description('Open interactive dashboard')
+  .option('--local', 'Use local database (default)')
+  .option('--remote', 'Use remote database')
+  .option('--prod', 'Use production database')
+  .action(dashboardCommand);
+
+// Analyze command
+program
+  .command('analyze')
+  .description('Analyze system status')
+  .option('--local', 'Use local database (default)')
+  .option('--remote', 'Use remote database')
+  .option('--prod', 'Use production database')
+  .option('--json', 'Output as JSON')
+  .action(analyzeCommand);
 
 // Version with all packages
 program

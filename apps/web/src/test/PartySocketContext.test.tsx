@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import { ConnectionStatusProvider } from '../contexts/ConnectionStatusContext';
 import { PartySocketProvider, usePartySocketContext } from '../contexts/PartySocketContext';
 import { vi } from 'vitest';
 import React, { useEffect } from 'react';
@@ -46,9 +47,11 @@ const TestComponent = () => {
 describe('PartySocketContext', () => {
   it('connects to the room', async () => {
     render(
-      <PartySocketProvider>
-        <TestComponent />
-      </PartySocketProvider>
+      <ConnectionStatusProvider>
+        <PartySocketProvider>
+          <TestComponent />
+        </PartySocketProvider>
+      </ConnectionStatusProvider>
     );
 
     // Should initially be disconnected but connect shortly after

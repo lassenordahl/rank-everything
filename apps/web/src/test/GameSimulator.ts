@@ -209,6 +209,13 @@ export class GameSimulator {
       return { success: false, error };
     }
 
+    // Check if game has reached item limit
+    if (this.room.items.length >= this.room.config.itemsPerGame) {
+      const error = 'Item limit reached';
+      this.errors.push(error);
+      return { success: false, error };
+    }
+
     // Check if it's this player's turn (for round-robin)
     if (this.room.config.submissionMode === 'round-robin') {
       if (this.room.currentTurnPlayerId !== playerId) {

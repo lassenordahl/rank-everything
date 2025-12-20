@@ -7,15 +7,16 @@ import type { Item } from '@rank-everything/shared-types';
 import RevealScreen from './RevealScreen';
 import { COPY } from '../lib/copy';
 import { transitions } from '../lib/design-tokens';
-import { RankingList, RankingSlot, GameSubmission, LoadingSpinner } from './ui';
+import { RankingList, RankingSlot, GameSubmission, LoadingSpinner, RoomCodeDisplay, GameStatusBadge } from './ui';
 import TimerProgressBar from './TimerProgressBar';
-import { AnimatedBackground } from './AnimatedBackground';
+import QRCodeModal from './QRCodeModal';
 
 export default function GameView() {
   const { code } = useParams<{ code: string }>();
   const [inputText, setInputText] = useState('');
   const [currentItem, setCurrentItem] = useState<Item | null>(null);
   const [isLoadingRandom, setIsLoadingRandom] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
 
   const { room, sendMessage, isMyTurn, isHost, playerId } = useGameRoom(code || '');
 
@@ -43,20 +44,35 @@ export default function GameView() {
   // Track last auto-ranked item to prevent double-ranking
   const lastAutoRankedRef = useRef<string | null>(null);
 
+  // Track auto-ranking state for UI feedback
+  const [isAutoRanking, setIsAutoRanking] = useState(false);
+
   // Auto-assign ranking when only 1 slot is left (no choice to make)
-  // This prevents the race condition where the game ends before player can click
+  // We add a delay to improve UX and prevent race conditions
+  // NOTE: We MUST depend on the ID string, not the item object.
+  // We also use refs for object dependencies to preventing re-running on every room update.
+  const currentItemId = effectiveCurrentItem?.id;
+  const myRankingsRef = useRef(myRankings);
+  myRankingsRef.current = myRankings;
+  const sendMessageRef = useRef(sendMessage);
+  sendMessageRef.current = sendMessage;
+
   useEffect(() => {
-    if (!effectiveCurrentItem) return;
+    if (!effectiveCurrentItem || !currentItemId) return;
 
     // Don't auto-rank the same item twice
-    if (lastAutoRankedRef.current === effectiveCurrentItem.id) return;
+    // Note: We check this against the ref current value in the logic below if needed,
+    // but the dependency on currentItemId handles the trigger.
+    if (lastAutoRankedRef.current === currentItemId) return;
 
     // If we've made itemsPerGame - 1 rankings, there's only 1 slot left
     if (numRankingsMade === itemsPerGame - 1) {
-      // Find the one remaining slot
+      setIsAutoRanking(true);
+
+      // Find the one remaining slot (using ref to access latest rankings without re-running effect)
       let lastSlot = 1;
       for (let i = 1; i <= itemsPerGame; i++) {
-        const slotUsed = Object.values(myRankings).includes(i);
+        const slotUsed = Object.values(myRankingsRef.current).includes(i);
         if (!slotUsed) {
           lastSlot = i;
           break;
@@ -64,20 +80,30 @@ export default function GameView() {
       }
 
       console.log(
-        `[GameView] Auto-ranking "${effectiveCurrentItem.text}" to slot ${lastSlot} (only slot left)`
+        `[GameView] Auto-ranking "${effectiveCurrentItem.text}" to slot ${lastSlot} in 1.5s...`
       );
-      lastAutoRankedRef.current = effectiveCurrentItem.id;
+      lastAutoRankedRef.current = currentItemId;
 
-      sendMessage(
-        JSON.stringify({
-          type: 'rank_item',
-          itemId: effectiveCurrentItem.id,
-          ranking: lastSlot,
-        })
-      );
-      setCurrentItem(null);
+      // Add delay for UX + reliability
+      const timer = setTimeout(() => {
+        sendMessageRef.current(
+          JSON.stringify({
+            type: 'rank_item',
+            itemId: currentItemId,
+            ranking: lastSlot,
+          })
+        );
+        setCurrentItem(null);
+        setIsAutoRanking(false);
+      }, 1500);
+
+      // Explicitly return cleanup function
+      return () => clearTimeout(timer);
     }
-  }, [effectiveCurrentItem, numRankingsMade, itemsPerGame, sendMessage, myRankings]);
+
+    // Explicitly return undefined if no timer set
+    return undefined;
+  }, [currentItemId, numRankingsMade, itemsPerGame]);
 
   // Determine if timer should be shown (static check)
   const shouldShowTimer = Boolean(
@@ -138,37 +164,30 @@ export default function GameView() {
   // Show reveal screen if game has ended
   // IMPORTANT: This must come AFTER all hooks to avoid "fewer hooks" error
   if (room?.status === 'ended' && playerId) {
-    return (
-      <>
-        <AnimatedBackground />
-        <RevealScreen room={room} playerId={playerId} isHost={isHost} sendMessage={sendMessage} />
-      </>
-    );
+    return <RevealScreen room={room} playerId={playerId} isHost={isHost} sendMessage={sendMessage} />;
   }
 
   // Loading state
   if (!room) {
     return (
       <>
-        <AnimatedBackground />
         <LoadingSpinner />
       </>
     );
   }
 
-  const currentPlayer = room?.players.find((p) => p.id === room?.currentTurnPlayerId);
+
 
   return (
     <>
-      <AnimatedBackground />
       <div className="relative z-10 flex-1 flex flex-col p-6 max-w-xl mx-auto w-full justify-center gap-6">
-        {/* Header */}
-        <div className="text-center">
-          <p className="text-sm text-black/70 font-medium">Room {code}</p>
-          <p className="text-lg font-bold">
-            {room?.items.length || 0} / {room?.config.itemsPerGame ?? 10} items
-          </p>
-        </div>
+        {/* Header - shared with lobby */}
+        <RoomCodeDisplay
+          code={code || ''}
+          showCopyButton={true}
+          showQRButton={true}
+          onQRClick={() => setShowQRModal(true)}
+        />
 
         {/* Timer Bar */}
         {shouldShowTimer && room?.timerEndAt && room?.config.timerDuration && (
@@ -181,29 +200,16 @@ export default function GameView() {
         )}
 
         {/* Dynamic Content Area (Input or Ranking) */}
-        <div className="overflow-hidden relative flex flex-col gap-6">
-          {/* Turn Indicator */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.1 }}
-            className="text-center"
-          >
-            {isMyTurn ? (
-              <motion.div
-                className="badge-active inline-flex inset-shadow"
-                animate={{ scale: [1, 1.02, 1] }}
-                transition={{ repeat: Infinity, duration: 2 }}
-              >
-                {COPY.game.yourTurn}
-              </motion.div>
-            ) : (
-              <div className="badge-waiting inline-flex inset-shadow">
-                <span className="animate-pulse">●</span>
-                {COPY.game.waitingFor} {currentPlayer?.nickname || '...'}
-              </div>
-            )}
-          </motion.div>
+        <div className="overflow-hidden relative flex flex-col gap-6 p-1">
+          {/* Game Status Badge */}
+          <div className="flex justify-center">
+            <GameStatusBadge
+              players={room?.players || []}
+              currentTurnPlayerId={room?.currentTurnPlayerId ?? undefined}
+              isMyTurn={isMyTurn}
+              myPlayerId={playerId ?? undefined}
+            />
+          </div>
 
           {/* Content Switching Area: Submission or Ranking */}
           <AnimatePresence mode="popLayout">
@@ -245,16 +251,18 @@ export default function GameView() {
                   {effectiveCurrentItem.emoji}
                 </motion.p>
                 <p className="text-xl font-bold mb-4">{effectiveCurrentItem.text}</p>
-                <p className="text-black/70 font-medium mb-4">{COPY.game.chooseSlot}</p>
+                <p className="text-black/70 font-medium mb-4">
+                  {isAutoRanking ? 'Auto-assigning last slot...' : COPY.game.chooseSlot}
+                </p>
 
                 <div className="grid grid-cols-5 gap-2">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                  {Array.from({ length: itemsPerGame }, (_, i) => i + 1).map((n) => (
                     <RankingSlot
                       key={n}
                       rank={n}
                       item={null}
                       onClick={() => handleRankItem(n)}
-                      disabled={usedSlots.has(n)}
+                      disabled={usedSlots.has(n) || isAutoRanking}
                       interactive={true}
                     />
                   ))}
@@ -275,6 +283,12 @@ export default function GameView() {
             animate={true}
           />
         </div>
+
+        <QRCodeModal
+          roomCode={code || ''}
+          isOpen={showQRModal}
+          onClose={() => setShowQRModal(false)}
+        />
       </div>
     </>
   );

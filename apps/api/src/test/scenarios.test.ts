@@ -338,3 +338,189 @@ describe('Late Join Catch-Up', () => {
     expect(allDone).toBe(true);
   });
 });
+
+describe('Game Termination', () => {
+  let gameState: GameRoomState;
+
+  beforeEach(() => {
+    gameState = new GameRoomState({ room: null, connections: new Map() });
+    gameState.createRoom('room-1', 'host-1', 'Host', { timerEnabled: false, itemsPerGame: 3 });
+
+    gameState.addPlayer({
+      id: 'p2',
+      nickname: 'P2',
+      roomId: 'room-1',
+      connected: true,
+      rankings: {},
+      joinedAt: Date.now(),
+    });
+
+    gameState.startGame();
+  });
+
+  it('should detect item limit reached', () => {
+    // Add items up to the limit
+    for (let i = 1; i <= 3; i++) {
+      gameState.addItem({
+        id: `item-${i}`,
+        text: `Item ${i}`,
+        emoji: '🎯',
+        submittedByPlayerId: 'host-1',
+        submittedAt: Date.now(),
+        roomId: 'room-1',
+      });
+    }
+
+    // Check that item limit is reached
+    const room = gameState.room;
+    if (!room) throw new Error('Room is null');
+    expect(room.items.length >= room.config.itemsPerGame).toBe(true);
+  });
+
+  it('should end game when all players ranked all items', () => {
+    // Add 3 items
+    for (let i = 1; i <= 3; i++) {
+      gameState.addItem({
+        id: `item-${i}`,
+        text: `Item ${i}`,
+        emoji: '🎯',
+        submittedByPlayerId: i % 2 === 1 ? 'host-1' : 'p2',
+        submittedAt: Date.now(),
+        roomId: 'room-1',
+      });
+    }
+
+    // Both players rank all items
+    const host = gameState.getPlayer('host-1');
+    const p2 = gameState.getPlayer('p2');
+    if (!host || !p2) throw new Error('Players not found');
+
+    host.rankings['item-1'] = 1;
+    host.rankings['item-2'] = 2;
+    host.rankings['item-3'] = 3;
+    p2.rankings['item-1'] = 3;
+    p2.rankings['item-2'] = 2;
+    p2.rankings['item-3'] = 1;
+
+    // Check game end condition
+    const room = gameState.room;
+    if (!room) throw new Error('Room is null');
+    const allDone = room.players.every((p) => {
+      const rankCount = Object.keys(p.rankings).length;
+      const isCaughtUp = !p.isCatchingUp;
+      return rankCount >= room.config.itemsPerGame && isCaughtUp;
+    });
+    expect(allDone).toBe(true);
+
+    // End game
+    gameState.endGame();
+    expect(room.status).toBe('ended');
+  });
+
+  it('should not end game if late joiner is still catching up', () => {
+    // Add 3 items
+    for (let i = 1; i <= 3; i++) {
+      gameState.addItem({
+        id: `item-${i}`,
+        text: `Item ${i}`,
+        emoji: '🎯',
+        submittedByPlayerId: 'host-1',
+        submittedAt: Date.now(),
+        roomId: 'room-1',
+      });
+    }
+
+    // Both existing players rank all items
+    const host = gameState.getPlayer('host-1');
+    const p2 = gameState.getPlayer('p2');
+    if (!host || !p2) throw new Error('Players not found');
+
+    host.rankings['item-1'] = 1;
+    host.rankings['item-2'] = 2;
+    host.rankings['item-3'] = 3;
+    p2.rankings['item-1'] = 2;
+    p2.rankings['item-2'] = 3;
+    p2.rankings['item-3'] = 1;
+
+    // Add late joiner who is catching up
+    gameState.addPlayer({
+      id: 'late-1',
+      nickname: 'Latecomer',
+      roomId: 'room-1',
+      connected: true,
+      rankings: {},
+      joinedAt: Date.now(),
+      isCatchingUp: true,
+    });
+
+    // Check game end condition - should be FALSE because late joiner hasn't caught up
+    const room = gameState.room;
+    if (!room) throw new Error('Room is null');
+    const allDone = room.players.every((p) => {
+      const rankCount = Object.keys(p.rankings).length;
+      const isCaughtUp = !p.isCatchingUp;
+      return rankCount >= room.config.itemsPerGame && isCaughtUp;
+    });
+    expect(allDone).toBe(false);
+    expect(room.status).toBe('in-progress');
+  });
+
+  it('should end game after late joiner catches up and ranks all items', () => {
+    // Add 3 items
+    for (let i = 1; i <= 3; i++) {
+      gameState.addItem({
+        id: `item-${i}`,
+        text: `Item ${i}`,
+        emoji: '🎯',
+        submittedByPlayerId: 'host-1',
+        submittedAt: Date.now(),
+        roomId: 'room-1',
+      });
+    }
+
+    // Both existing players rank all items
+    const host = gameState.getPlayer('host-1');
+    const p2 = gameState.getPlayer('p2');
+    if (!host || !p2) throw new Error('Players not found');
+
+    host.rankings['item-1'] = 1;
+    host.rankings['item-2'] = 2;
+    host.rankings['item-3'] = 3;
+    p2.rankings['item-1'] = 2;
+    p2.rankings['item-2'] = 3;
+    p2.rankings['item-3'] = 1;
+
+    // Add late joiner
+    gameState.addPlayer({
+      id: 'late-1',
+      nickname: 'Latecomer',
+      roomId: 'room-1',
+      connected: true,
+      rankings: {},
+      joinedAt: Date.now(),
+      isCatchingUp: true,
+    });
+
+    const latePlayer = gameState.getPlayer('late-1');
+    if (!latePlayer) throw new Error('late-1 not found');
+
+    // Late joiner catches up by ranking all items
+    latePlayer.rankings['item-1'] = 3;
+    latePlayer.rankings['item-2'] = 1;
+    latePlayer.rankings['item-3'] = 2;
+    gameState.checkPlayerCaughtUp('late-1');
+
+    // Check game end condition - should be TRUE now
+    const room = gameState.room;
+    if (!room) throw new Error('Room is null');
+    const allDone = room.players.every((p) => {
+      const rankCount = Object.keys(p.rankings).length;
+      const isCaughtUp = !p.isCatchingUp;
+      return rankCount >= room.config.itemsPerGame && isCaughtUp;
+    });
+    expect(allDone).toBe(true);
+
+    gameState.endGame();
+    expect(room.status).toBe('ended');
+  });
+});

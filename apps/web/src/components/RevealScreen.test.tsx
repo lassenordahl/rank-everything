@@ -2,6 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, describe, it, expect } from 'vitest';
 import RevealScreen from './RevealScreen';
 import { BrowserRouter } from 'react-router-dom';
+import { FeatureFlagProvider } from '../contexts/FeatureFlagContext';
 import type { Room } from '@rank-everything/shared-types';
 
 // Mock html2canvas
@@ -106,9 +107,9 @@ describe('RevealScreen', () => {
         <RevealScreen {...defaultProps} />
       </BrowserRouter>
     );
-    // Verify visualization elements
-    expect(screen.getAllByText('1.')).toHaveLength(2); // Rank number (visible + hidden share card)
-    expect(screen.getAllByText('Item 1')).toHaveLength(2);
+    // Verify visualization elements (now only visible list, no hidden share card)
+    expect(screen.getAllByText('1.')).toHaveLength(1);
+    expect(screen.getAllByText('Item 1')).toHaveLength(1);
   });
 
   it('navigates between players', () => {
@@ -130,9 +131,11 @@ describe('RevealScreen', () => {
 
   it('shows share button', () => {
     render(
-      <BrowserRouter>
-        <RevealScreen {...defaultProps} />
-      </BrowserRouter>
+      <FeatureFlagProvider overrides={{ share_results: true }}>
+        <BrowserRouter>
+          <RevealScreen {...defaultProps} />
+        </BrowserRouter>
+      </FeatureFlagProvider>
     );
 
     expect(screen.getByText('Share Rankings')).toBeInTheDocument();

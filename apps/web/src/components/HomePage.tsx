@@ -6,7 +6,6 @@ import { MAX_NICKNAME_LENGTH, ROOM_CODE_LENGTH } from '@rank-everything/validati
 import { COPY } from '../lib/copy';
 import { transitions } from '../lib/design-tokens';
 import { Input } from './ui';
-import { AnimatedBackground } from './AnimatedBackground';
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -65,7 +64,6 @@ export default function HomePage() {
 
   return (
     <>
-      <AnimatedBackground />
       <div className="relative z-10 flex-1 w-full flex flex-col items-center justify-center p-6 sm:p-12">
         <div className="w-full max-w-sm">
           {/* Main Content Area - Open Layout */}

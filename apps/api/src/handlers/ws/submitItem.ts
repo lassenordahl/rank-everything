@@ -38,6 +38,14 @@ export async function handleSubmitItem(
     return;
   }
 
+  // Check if game has reached item limit
+  if (room.items.length >= room.config.itemsPerGame) {
+    conn.send(
+      JSON.stringify({ type: 'error', message: 'Item limit reached', code: 'ITEM_LIMIT_REACHED' })
+    );
+    return;
+  }
+
   // Validate input using Zod schema
   const result = submitItemSchema.safeParse(message);
 

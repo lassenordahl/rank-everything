@@ -1,0 +1,75 @@
+
+import { type DatabaseExecutor, type GlobalItem } from '@rank-everything/db-schema';
+
+export interface EmojiUsage {
+  date: string;
+  count: number;
+  updated_at: number;
+}
+
+export interface SystemStatus {
+  environment: 'dist' | 'local' | 'remote';
+  dbConnection: boolean;
+  itemsCount: number;
+  emojiUsageToday: number;
+  recentItems: GlobalItem[];
+}
+
+export class DashboardService {
+  private executor: DatabaseExecutor;
+  private isLocal: boolean;
+
+  constructor(executor: DatabaseExecutor, isLocal: boolean) {
+    this.executor = executor;
+    this.isLocal = isLocal;
+  }
+
+  async checkConnection(): Promise<boolean> {
+    const result = await this.executor.query<{ name: string }>('SELECT name FROM sqlite_master LIMIT 1');
+    return result.success;
+  }
+
+  async getGlobalStats(): Promise<{ itemsCount: number; emojiUsageToday: number }> {
+    const itemsResult = await this.executor.query<{ count: number }>('SELECT COUNT(*) as count FROM global_items');
+    const today = new Date().toISOString().split('T')[0];
+    const emojiResult = await this.executor.query<{ count: number }>(`SELECT count FROM emoji_usage WHERE date = '${today}'`);
+
+    return {
+      itemsCount: itemsResult.results?.[0]?.count || 0,
+      emojiUsageToday: emojiResult.results?.[0]?.count || 0,
+    };
+  }
+
+  async getRecentItems(limit = 10): Promise<GlobalItem[]> {
+    const result = await this.executor.query<GlobalItem>(`
+      SELECT * FROM global_items
+      ORDER BY created_at DESC
+      LIMIT ${limit}
+    `);
+
+    return result.results || [];
+  }
+
+  async getSystemStatus(): Promise<SystemStatus> {
+    const connection = await this.checkConnection();
+    let stats = { itemsCount: 0, emojiUsageToday: 0 };
+    let recentItems: GlobalItem[] = [];
+
+    if (connection) {
+      try {
+        stats = await this.getGlobalStats();
+        recentItems = await this.getRecentItems();
+      } catch (error) {
+        console.error('Failed to fetch stats:', error);
+      }
+    }
+
+    return {
+      environment: this.isLocal ? 'local' : 'remote',
+      dbConnection: connection,
+      itemsCount: stats.itemsCount,
+      emojiUsageToday: stats.emojiUsageToday,
+      recentItems,
+    };
+  }
+}

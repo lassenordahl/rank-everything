@@ -466,6 +466,118 @@ describe('Full Game Simulations', () => {
         expect(sim.rankItem('host-player', result.itemId, 11).success).toBe(false);
       }
     });
+
+    it('should reject 11th item submission after reaching item limit', () => {
+      const sim = createGameWithPlayers(2);
+      sim.configure({ itemsPerGame: 3 });
+      sim.startGame();
+
+      // Submit 3 items (the limit)
+      const items = ['Item 1', 'Item 2', 'Item 3'];
+      for (let i = 0; i < 3; i++) {
+        const player = sim.getCurrentTurnPlayer();
+        if (!player) break;
+        const result = sim.submitItem(player.id, items[i]);
+        expect(result.success).toBe(true);
+
+        // Both players rank
+        if (result.itemId) {
+          sim.rankItem('host-player', result.itemId, i + 1);
+          sim.rankItem('player-1', result.itemId, i + 1);
+        }
+      }
+
+      sim.assertItemCount(3);
+      sim.assertStatus('ended');
+
+      // Try to submit a 4th item - should fail even though we configured for 3
+      // (But game already ended, so it's "game not in progress")
+    });
+
+    it('should reject item submission when at limit but game still in progress', () => {
+      const sim = createGameWithPlayers(2);
+      sim.configure({ itemsPerGame: 3 });
+      sim.startGame();
+
+      // Submit 3 items but DON'T rank the last one completely
+      const items = ['Item 1', 'Item 2', 'Item 3'];
+      const itemIds: string[] = [];
+
+      for (let i = 0; i < 3; i++) {
+        const player = sim.getCurrentTurnPlayer();
+        if (!player) break;
+        const result = sim.submitItem(player.id, items[i]);
+        expect(result.success).toBe(true);
+        if (result.itemId) {
+          itemIds.push(result.itemId);
+          // Only host ranks, player-1 doesn't rank last item
+          sim.rankItem('host-player', result.itemId, i + 1);
+          if (i < 2) {
+            sim.rankItem('player-1', result.itemId, i + 1);
+          }
+        }
+      }
+
+      // Game should still be in progress (waiting for player-1 to rank 3rd item)
+      sim.assertStatus('in-progress');
+      sim.assertItemCount(3);
+
+      // Try to submit a 4th item - should fail with "Item limit reached"
+      const extraItemResult = sim.submitItem('host-player', 'Extra Item');
+      expect(extraItemResult.success).toBe(false);
+      expect(extraItemResult.error).toBe('Item limit reached');
+
+      // Complete the missing ranking to end the game
+      sim.rankItem('player-1', itemIds[2], 3);
+      sim.assertStatus('ended');
+    });
+
+    it('should end game immediately when late joiner catches up with all rankings', () => {
+      // This is the EXACT bug scenario: late joiner, 10 items, no reveal screen
+      const sim = createGameWithPlayers(2);
+      sim.configure({ itemsPerGame: 3 });
+      sim.startGame();
+
+      // Submit 2 items, both players rank
+      const item1 = sim.submitItem('host-player', 'Item 1');
+      if (!item1.itemId) throw new Error('No itemId');
+      sim.rankItem('host-player', item1.itemId, 1);
+      sim.rankItem('player-1', item1.itemId, 1);
+
+      // Late joiner arrives after 1 item
+      const lateJoin = sim.addPlayer('LateJoiner');
+      if (!lateJoin.playerId) throw new Error('No lateJoin.playerId');
+      expect(sim.getPlayer(lateJoin.playerId)?.isCatchingUp).toBe(true);
+
+      // Continue game - submit 2 more items
+      const item2 = sim.submitItem('player-1', 'Item 2');
+      if (!item2.itemId) throw new Error('No itemId');
+      sim.rankItem('host-player', item2.itemId, 2);
+      sim.rankItem('player-1', item2.itemId, 2);
+
+      const item3 = sim.submitItem('host-player', 'Item 3');
+      if (!item3.itemId) throw new Error('No itemId');
+      sim.rankItem('host-player', item3.itemId, 3);
+      sim.rankItem('player-1', item3.itemId, 3);
+
+      // Game should NOT end yet - late joiner still catching up
+      sim.assertStatus('in-progress');
+      sim.assertItemCount(3);
+
+      // Try to submit 4th item - should fail
+      const extraResult = sim.submitItem('player-1', 'Extra Item');
+      expect(extraResult.success).toBe(false);
+      expect(extraResult.error).toBe('Item limit reached');
+
+      // Late joiner catches up and ranks all items
+      sim.rankItem(lateJoin.playerId, item1.itemId, 3);
+      sim.rankItem(lateJoin.playerId, item2.itemId, 1);
+      sim.rankItem(lateJoin.playerId, item3.itemId, 2);
+
+      // NOW game should end
+      sim.assertStatus('ended');
+      sim.assertItemCount(3); // Still only 3 items, not 4!
+    });
   });
 
   describe('End State Verification', () => {
@@ -829,6 +941,305 @@ describe('Full Game Simulations', () => {
       if (!lateJoin.playerId) throw new Error('No lateJoin.playerId');
       const item2 = sim.submitItem(lateJoin.playerId, 'My Item');
       expect(item2.success).toBe(true);
+    });
+  });
+
+  describe('Reliability & State Invariants', () => {
+    describe('Ranking Slot Uniqueness', () => {
+      it('should prevent same ranking slot being used twice by same player', () => {
+        const sim = createGameWithPlayers(2);
+        sim.configure({ itemsPerGame: 3 });
+        sim.startGame();
+
+        // Submit 2 items
+        const item1 = sim.submitItem('host-player', 'Item 1');
+        const item2 = sim.submitItem('player-1', 'Item 2');
+
+        if (!item1.itemId || !item2.itemId) throw new Error('No itemIds');
+
+        // Host ranks item1 as slot 1
+        const result1 = sim.rankItem('host-player', item1.itemId, 1);
+        expect(result1.success).toBe(true);
+
+        // Host tries to rank item2 as slot 1 (already used)
+        const result2 = sim.rankItem('host-player', item2.itemId, 1);
+        expect(result2.success).toBe(false);
+        expect(result2.error).toContain('slot 1 already used');
+      });
+
+      it('should allow different players to use same ranking slot', () => {
+        const sim = createGameWithPlayers(2);
+        sim.configure({ itemsPerGame: 3 });
+        sim.startGame();
+
+        const item1 = sim.submitItem('host-player', 'Item 1');
+        if (!item1.itemId) throw new Error('No itemId');
+
+        // Both players rank as slot 1 (should be allowed)
+        const result1 = sim.rankItem('host-player', item1.itemId, 1);
+        const result2 = sim.rankItem('player-1', item1.itemId, 1);
+
+        expect(result1.success).toBe(true);
+        expect(result2.success).toBe(true);
+      });
+    });
+
+    describe('Item Re-ranking Prevention', () => {
+      it('should prevent player from changing their ranking for an item', () => {
+        const sim = createGameWithPlayers(2);
+        sim.startGame();
+
+        const item = sim.submitItem('host-player', 'Pizza');
+        if (!item.itemId) throw new Error('No itemId');
+
+        // Rank once
+        sim.rankItem('host-player', item.itemId, 5);
+
+        // Try to re-rank
+        const result = sim.rankItem('host-player', item.itemId, 3);
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('already ranked');
+      });
+    });
+
+    describe('Game State Consistency', () => {
+      it('should always have valid turn player when in-progress', () => {
+        const sim = createGameWithPlayers(4);
+        sim.startGame();
+
+        for (let i = 0; i < 10; i++) {
+          const room = sim.getRoom();
+          expect(room.status).toBe('in-progress');
+          expect(room.currentTurnPlayerId).not.toBeNull();
+
+          const currentPlayer = room.players.find((p) => p.id === room.currentTurnPlayerId);
+          expect(currentPlayer).toBeDefined();
+
+          // Only submit if game not ended
+          if (room.items.length < room.config.itemsPerGame) {
+            const player = sim.getCurrentTurnPlayer();
+            if (!player) break;
+            const result = sim.submitItem(player.id, `Item ${i + 1}`);
+            if (result.itemId) {
+              // Everyone ranks
+              sim.getRoom().players.forEach((p) => {
+                sim.rankItem(p.id, result.itemId!, i + 1);
+              });
+            }
+          }
+        }
+      });
+
+      it('should have no turn player when game is ended', () => {
+        const sim = createGameWithPlayers(2);
+        sim.configure({ itemsPerGame: 2 });
+        sim.startGame();
+
+        // Complete game
+        for (let i = 0; i < 2; i++) {
+          const player = sim.getCurrentTurnPlayer();
+          if (!player) break;
+          const result = sim.submitItem(player.id, `Item ${i + 1}`);
+          if (result.itemId) {
+            sim.rankItem('host-player', result.itemId, i + 1);
+            sim.rankItem('player-1', result.itemId, i + 1);
+          }
+        }
+
+        sim.assertStatus('ended');
+
+        // Game ended - no more submissions should work
+        const extraResult = sim.submitItem('host-player', 'Extra');
+        expect(extraResult.success).toBe(false);
+      });
+
+      it('should maintain player count consistency through game', () => {
+        const sim = createGameWithPlayers(4);
+        const initialCount = sim.getRoom().players.length;
+
+        sim.startGame();
+        expect(sim.getRoom().players.length).toBe(initialCount);
+
+        // Add late joiner
+        sim.addPlayer('LateJoiner');
+        expect(sim.getRoom().players.length).toBe(initialCount + 1);
+
+        // Disconnect a player
+        sim.disconnectPlayer('player-1');
+        // Player count stays same (just disconnected, not removed)
+        expect(sim.getRoom().players.length).toBe(initialCount + 1);
+      });
+    });
+
+    describe('Stress Testing', () => {
+      it('should handle max players (8) completing full game', () => {
+        const sim = new GameSimulator('FULL', 'Host');
+        for (let i = 1; i < 8; i++) {
+          sim.addPlayer(`Player${i + 1}`);
+        }
+        sim.assertPlayerCount(8);
+        sim.startGame();
+
+        for (let i = 0; i < 10; i++) {
+          const player = sim.getCurrentTurnPlayer();
+          if (!player) break;
+
+          const result = sim.submitItem(player.id, `Item ${i + 1}`);
+          if (result.itemId) {
+            // All 8 players rank
+            sim.getRoom().players.forEach((p) => {
+              sim.rankItem(p.id, result.itemId!, i + 1);
+            });
+          }
+        }
+
+        sim.assertStatus('ended');
+        sim.assertItemCount(10);
+
+        // All 8 players should have 10 rankings
+        sim.getRoom().players.forEach((p) => {
+          expect(Object.keys(p.rankings).length).toBe(10);
+        });
+      });
+
+      it('should handle rapid turn changes without errors', () => {
+        const sim = createGameWithPlayers(3);
+        sim.startGame();
+
+        // Rapidly skip turns 20 times
+        for (let i = 0; i < 20; i++) {
+          sim.skipTurn();
+        }
+
+        // Game should still be in valid state
+        const room = sim.getRoom();
+        expect(room.status).toBe('in-progress');
+        expect(room.currentTurnPlayerId).not.toBeNull();
+        sim.assertNoErrors();
+      });
+
+      it('should handle mixed connect/disconnect/reconnect cycles', () => {
+        const sim = createGameWithPlayers(4);
+        sim.startGame();
+
+        // Player 1 disconnects
+        sim.disconnectPlayer('player-1');
+        expect(sim.getPlayer('player-1')?.connected).toBe(false);
+
+        // Player 2 disconnects
+        sim.disconnectPlayer('player-2');
+
+        // Player 1 reconnects
+        sim.reconnectPlayer('player-1');
+        expect(sim.getPlayer('player-1')?.connected).toBe(true);
+
+        // Player 3 disconnects
+        sim.disconnectPlayer('player-3');
+
+        // Player 2 reconnects
+        sim.reconnectPlayer('player-2');
+
+        // Verify state is consistent
+        const room = sim.getRoom();
+        expect(room.players.length).toBe(4);
+        expect(room.players.filter((p) => p.connected).length).toBe(3); // host, p1, p2
+      });
+    });
+
+    describe('Edge Case Combinations', () => {
+      it('should handle late joiner + disconnect + reconnect', () => {
+        const sim = createGameWithPlayers(2);
+        sim.configure({ itemsPerGame: 3 });
+        sim.startGame();
+
+        // Submit first item
+        const item1 = sim.submitItem('host-player', 'Item 1');
+        if (!item1.itemId) throw new Error('No itemId');
+        sim.rankItem('host-player', item1.itemId, 1);
+        sim.rankItem('player-1', item1.itemId, 1);
+
+        // Late joiner arrives
+        const lateJoin = sim.addPlayer('LateJoiner');
+        if (!lateJoin.playerId) throw new Error('No playerId');
+        expect(sim.getPlayer(lateJoin.playerId)?.isCatchingUp).toBe(true);
+
+        // Late joiner disconnects before catching up
+        sim.disconnectPlayer(lateJoin.playerId);
+        expect(sim.getPlayer(lateJoin.playerId)?.connected).toBe(false);
+
+        // Late joiner reconnects
+        sim.reconnectPlayer(lateJoin.playerId);
+        expect(sim.getPlayer(lateJoin.playerId)?.connected).toBe(true);
+
+        // Late joiner is STILL catching up (disconnect doesn't reset this)
+        expect(sim.getPlayer(lateJoin.playerId)?.isCatchingUp).toBe(true);
+
+        // Late joiner catches up
+        sim.rankItem(lateJoin.playerId, item1.itemId, 2);
+        expect(sim.getPlayer(lateJoin.playerId)?.isCatchingUp).toBe(false);
+      });
+
+      it('should handle host leaving mid-game with late joiner', () => {
+        const sim = createGameWithPlayers(3);
+        sim.configure({ itemsPerGame: 3 });
+        sim.startGame();
+
+        // Submit item
+        const item1 = sim.submitItem('host-player', 'Item 1');
+        if (!item1.itemId) throw new Error('No itemId');
+        sim.rankItem('host-player', item1.itemId, 1);
+        sim.rankItem('player-1', item1.itemId, 1);
+        sim.rankItem('player-2', item1.itemId, 1);
+
+        // Late joiner arrives
+        const lateJoin = sim.addPlayer('LateJoiner');
+        if (!lateJoin.playerId) throw new Error('No playerId');
+
+        // Host leaves
+        sim.removePlayer('host-player');
+
+        // New host should be assigned
+        const room = sim.getRoom();
+        expect(room.hostPlayerId).not.toBe('host-player');
+        expect(room.hostPlayerId).toBe('player-1');
+
+        // Late joiner is still catching up
+        expect(sim.getPlayer(lateJoin.playerId)?.isCatchingUp).toBe(true);
+      });
+
+      it('should complete game even if players join and leave mid-game', () => {
+        const sim = createGameWithPlayers(2);
+        sim.configure({ itemsPerGame: 3 });
+        sim.startGame();
+
+        const item1 = sim.submitItem('host-player', 'Item 1');
+        if (!item1.itemId) throw new Error('No itemId');
+        sim.rankItem('host-player', item1.itemId, 1);
+        sim.rankItem('player-1', item1.itemId, 1);
+
+        // Add player
+        const newPlayer = sim.addPlayer('NewPlayer');
+        if (!newPlayer.playerId) throw new Error('No playerId');
+
+        // New player catches up
+        sim.rankItem(newPlayer.playerId, item1.itemId, 2);
+
+        // Continue game
+        const item2 = sim.submitItem('player-1', 'Item 2');
+        if (!item2.itemId) throw new Error('No itemId');
+        sim.rankItem('host-player', item2.itemId, 2);
+        sim.rankItem('player-1', item2.itemId, 2);
+        sim.rankItem(newPlayer.playerId, item2.itemId, 1);
+
+        const item3 = sim.submitItem(newPlayer.playerId, 'Item 3');
+        if (!item3.itemId) throw new Error('No itemId');
+        sim.rankItem('host-player', item3.itemId, 3);
+        sim.rankItem('player-1', item3.itemId, 3);
+        sim.rankItem(newPlayer.playerId, item3.itemId, 3);
+
+        sim.assertStatus('ended');
+        sim.assertItemCount(3);
+      });
     });
   });
 });

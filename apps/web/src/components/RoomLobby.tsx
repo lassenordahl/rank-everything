@@ -8,7 +8,6 @@ import { COPY } from '../lib/copy';
 import { transitions } from '../lib/design-tokens';
 import { PlayerList, RoomCodeDisplay, Input, LoadingSpinner } from './ui';
 import QRCodeModal from './QRCodeModal';
-import { AnimatedBackground } from './AnimatedBackground';
 
 export default function RoomLobby() {
   const { code } = useParams<{ code: string }>();
@@ -59,7 +58,12 @@ export default function RoomLobby() {
         onSuccess: (data) => {
           localStorage.setItem('playerId', data.playerId);
           localStorage.setItem('roomCode', code);
-          window.location.reload();
+          // Explicitly identify ourselves to the socket so the server knows we are connected
+          // The socket was likely already open (anonymous) while in the lobby
+          sendMessage(JSON.stringify({ type: 'reconnect', playerId: data.playerId }));
+
+          // The WebSocket will receive a room_updated event that will update
+          // the room state in the cache, triggering a re-render.
         },
         onError: (error) => setLocalError(error.message),
       }
@@ -70,20 +74,13 @@ export default function RoomLobby() {
 
   // Loading state
   if (!room) {
-    return (
-      <>
-        <AnimatedBackground />
-        <LoadingSpinner />
-      </>
-    );
+    return <LoadingSpinner />;
   }
 
   // Not joined state - Show Join Form
   if (!isJoined) {
     return (
-      <>
-        <AnimatedBackground />
-        <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6">
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -133,16 +130,14 @@ export default function RoomLobby() {
                 {joinRoom.isPending ? COPY.pending.joining : COPY.buttons.join}
               </motion.button>
             </div>
-          </motion.div>
-        </div>
-      </>
+            </motion.div>
+      </div>
     );
   }
 
   return (
-    <>
-      <AnimatedBackground />
-      <div className="relative z-10 flex-1 flex flex-col items-center p-6 max-w-xl mx-auto w-full justify-center gap-8 py-12">
+    <div className="relative min-h-screen flex flex-col p-6 overflow-hidden">
+      <div className="relative z-10 w-full max-w-md mx-auto flex flex-col items-center flex-1 h-full justify-center gap-8 py-12">
         {/* Room Code */}
         <RoomCodeDisplay
           code={code || ''}
@@ -275,55 +270,72 @@ export default function RoomLobby() {
           </motion.div>
         )}
 
-        {/* Start Button (host only) */}
+        {/* Action Buttons */}
         {isHost && (
-          <motion.button
-            onClick={handleStartGame}
-            disabled={!(room && room.players.length >= 1) || startGame.isPending}
-            className="btn-primary"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ ...transitions.default, delay: 0.3 }}
+            className="flex gap-3 w-full max-w-sm"
           >
-            {startGame.isPending
-              ? COPY.pending.starting
-              : room && room.players.length >= 1
-                ? COPY.buttons.startGame
-                : COPY.labels.needPlayers}
-          </motion.button>
-        )}
-
-        {!isHost && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="badge-waiting inset-shadow"
-          >
-            <span className="animate-pulse">●</span>
-            {COPY.labels.waitingForHost}
+            <motion.button
+              onClick={() => {
+                localStorage.removeItem('playerId');
+                localStorage.removeItem('roomCode');
+                navigate('/');
+              }}
+              className="btn-secondary text-sm flex items-center justify-center gap-3 flex-1"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <span>←</span>
+              <span>Leave</span>
+            </motion.button>
+            <motion.button
+              onClick={handleStartGame}
+              disabled={!(room && room.players.length >= 1) || startGame.isPending}
+              className="btn-primary flex-[2]"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              {startGame.isPending
+                ? COPY.pending.starting
+                : room && room.players.length >= 1
+                  ? COPY.buttons.startGame
+                  : COPY.labels.needPlayers}
+            </motion.button>
           </motion.div>
         )}
 
-        {/* Back Button - below start game */}
-        <motion.button
-          onClick={() => {
-            localStorage.removeItem('playerId');
-            localStorage.removeItem('roomCode');
-            navigate('/');
-          }}
-          className="btn-secondary text-sm flex items-center justify-center gap-3"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          transition={{ delay: 0.4 }}
-        >
-          <span>←</span>
-          <span>Leave Room</span>
-        </motion.button>
+        {!isHost && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="badge-waiting inset-shadow"
+            >
+              <span className="animate-pulse">●</span>
+              {COPY.labels.waitingForHost}
+            </motion.div>
+            <motion.button
+              onClick={() => {
+                localStorage.removeItem('playerId');
+                localStorage.removeItem('roomCode');
+                navigate('/');
+              }}
+              className="btn-secondary text-sm flex items-center justify-center gap-3"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              transition={{ delay: 0.4 }}
+            >
+              <span>←</span>
+              <span>Leave Room</span>
+            </motion.button>
+          </>
+        )}
 
         <QRCodeModal
           roomCode={code || ''}
@@ -331,6 +343,6 @@ export default function RoomLobby() {
           onClose={() => setShowQRModal(false)}
         />
       </div>
-    </>
+    </div>
   );
 }

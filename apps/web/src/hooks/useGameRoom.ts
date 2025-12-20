@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ApiClient } from '../lib/api';
 import { usePartySocket } from './usePartySocket';
-import { useConnectionMonitor } from './useConnectionMonitor';
 import type { Room, Player, Item } from '@rank-everything/shared-types';
 
 export function useGameRoom(code: string) {
@@ -31,8 +30,7 @@ export function useGameRoom(code: string) {
   // 2. Realtime Updates (WebSocket)
   const { lastMessage, isConnected, sendMessage } = usePartySocket(code);
 
-  // Monitor connection health
-  useConnectionMonitor(isConnected);
+  // Connection monitoring is now handled by ConnectionStatusContext
 
   useEffect(() => {
     if (!lastMessage) return;
@@ -78,10 +76,13 @@ export function useGameRoom(code: string) {
       }
 
       // Handle game ended
+      // NOTE: We do NOT refetch here because:
+      // 1. The server broadcasts room_updated immediately after game_ended
+      // 2. Refetching here creates a race condition where stale data may overwrite
+      //    the final items/rankings before room_updated arrives
       if (event.type === 'game_ended') {
-        console.log(`[useGameRoom] Game ended, re-fetching room to get final state`);
-        // Force immediate refetch to ensure we have the 'ended' status
-        queryClient.invalidateQueries({ queryKey: ['room', code] });
+        console.log(`[useGameRoom] Game ended. Waiting for room_updated with final state.`);
+        // The room_updated event will follow and set the final state correctly
       }
 
       // Handle Navigation

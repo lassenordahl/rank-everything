@@ -298,6 +298,11 @@ export default class GameRoom implements Party.Server {
           break;
         }
 
+        case 'ping':
+          // Respond to heartbeat ping with pong
+          sender.send(JSON.stringify({ type: 'pong' }));
+          break;
+
         default:
           sender.send(JSON.stringify({ type: 'error', message: 'Unknown event type' }));
       }

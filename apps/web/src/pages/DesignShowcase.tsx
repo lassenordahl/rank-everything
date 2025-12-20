@@ -26,6 +26,7 @@ import {
   PlayerList,
   Input,
   GameSubmission,
+  GameStatusBadge,
 } from '../components/ui';
 
 // ============================================================================
@@ -34,10 +35,20 @@ import {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="mb-12">
-      <h2 className="text-2xl font-bold mb-6 pb-2 border-b-2 border-black">{title}</h2>
-      {children}
-    </section>
+    <motion.section
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-50px" }}
+      transition={{ duration: 0.4 }}
+      className="mb-8 border-2 border-black bg-white shadow-[4px_4px_0_0_#000000] overflow-hidden"
+    >
+      <div className="bg-black text-white px-4 py-3">
+        <h2 className="text-lg font-black uppercase tracking-tight">{title}</h2>
+      </div>
+      <div className="p-6 bg-white">
+        {children}
+      </div>
+    </motion.section>
   );
 }
 
@@ -563,49 +574,141 @@ function BadgeShowcase() {
 }
 
 // ============================================================================
+// GAME STATUS BADGE
+// ============================================================================
+
+function GameStatusBadgeShowcase() {
+  // Mock players for demonstration
+  const mockPlayers = [
+    { id: 'player-1', nickname: 'Alice', connected: true },
+    { id: 'player-2', nickname: 'Bob', connected: true },
+    { id: 'player-3', nickname: 'Charlie', connected: true },
+    { id: 'player-4', nickname: 'Diana', connected: true },
+  ];
+
+  const manyPlayers = [
+    ...mockPlayers,
+    { id: 'player-5', nickname: 'Eve', connected: true },
+    { id: 'player-6', nickname: 'Frank', connected: true },
+    { id: 'player-7', nickname: 'Grace', connected: true },
+    { id: 'player-8', nickname: 'Henry', connected: true },
+  ];
+
+  return (
+    <div className="space-y-8">
+      {/* Your Turn State */}
+      <div>
+        <p className="text-sm text-neutral-500 mb-3">Your Turn State (4 players)</p>
+        <GameStatusBadge
+          players={mockPlayers}
+          currentTurnPlayerId="player-1"
+          isMyTurn={true}
+          myPlayerId="player-1"
+        />
+      </div>
+
+      {/* Waiting State */}
+      <div>
+        <p className="text-sm text-neutral-500 mb-3">Waiting for Other Player (4 players)</p>
+        <GameStatusBadge
+          players={mockPlayers}
+          currentTurnPlayerId="player-2"
+          isMyTurn={false}
+          myPlayerId="player-1"
+        />
+      </div>
+
+      {/* Many Players */}
+      <div>
+        <p className="text-sm text-neutral-500 mb-3">Many Players (8 players, overflow)</p>
+        <GameStatusBadge
+          players={manyPlayers}
+          currentTurnPlayerId="player-3"
+          isMyTurn={false}
+          myPlayerId="player-1"
+        />
+      </div>
+
+      {/* Small Game */}
+      <div>
+        <p className="text-sm text-neutral-500 mb-3">Small Game (2 players)</p>
+        <GameStatusBadge
+          players={mockPlayers.slice(0, 2)}
+          currentTurnPlayerId="player-2"
+          isMyTurn={false}
+          myPlayerId="player-1"
+        />
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
 // RANKINGS LIST
 // ============================================================================
 
 function RankingsShowcase() {
-  // Mock data in the format RankingList expects
+  // Mock data with varied text lengths to demonstrate line stacking
   const mockItems = [
     { id: 'item-1', text: 'Pizza', emoji: '🍕' },
-    { id: 'item-2', text: 'Tacos', emoji: '🌮' },
-    { id: 'item-3', text: 'Sushi', emoji: '🍣' },
+    { id: 'item-2', text: 'Homemade Chicken Tacos with Fresh Salsa', emoji: '🌮' },
+    { id: 'item-3', text: 'Authentic Tokyo-style Ramen with Chashu Pork', emoji: '🍜' },
+    { id: 'item-4', text: 'Sushi', emoji: '🍣' },
+    { id: 'item-5', text: 'Double Bacon Cheeseburger with Special Sauce', emoji: '🍔' },
   ];
 
-  // Rankings: itemId -> rank
-  const mockRankings: Record<string, number> = {
-    'item-1': 1,
-    'item-2': 2,
-    'item-3': 3,
+  // My rankings (viewer)
+  const myRankings: Record<string, number> = {
+    'item-1': 1, // Pizza #1
+    'item-2': 2, // Tacos #2
+    'item-3': 3, // Ramen #3
+    'item-4': 4, // Sushi #4
+    'item-5': 5, // Burgers #5
+  };
+
+  // Other player's rankings (different order)
+  const otherPlayerRankings: Record<string, number> = {
+    'item-2': 1, // Tacos #1 (I ranked #2, so -1)
+    'item-1': 2, // Pizza #2 (I ranked #1, so +1)
+    'item-5': 3, // Burgers #3 (I ranked #5, so +2)
+    'item-3': 4, // Ramen #4 (I ranked #3, so -1)
+    'item-4': 5, // Sushi #5 (I ranked #4, so -1)
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      {/* Standard Ranking List */}
       <div>
-        <p className="text-sm text-neutral-500 mb-3">Rankings List (shared component)</p>
+        <p className="text-sm text-neutral-500 mb-3">My Rankings (no comparison indicators)</p>
         <div className="max-w-md">
           <RankingList
-            rankings={mockRankings}
+            rankings={myRankings}
             items={mockItems}
-            itemsPerGame={10}
+            itemsPerGame={5}
             showHeader={true}
             headerTitle="My Rankings"
-            animate={true}
+            animate={false}
           />
         </div>
       </div>
+
+      {/* Ranking Comparison Demo */}
       <div>
-        <p className="text-sm text-neutral-500 mb-3">Rankings List (shared component)</p>
+        <p className="text-sm text-neutral-500 mb-3">
+          Other Player's Rankings (with comparison to my rankings)
+        </p>
+        <p className="text-xs text-neutral-400 mb-3">
+          Green ↑ = You ranked this higher • Red ↓ = You ranked this lower
+        </p>
         <div className="max-w-md">
           <RankingList
-            rankings={mockRankings}
+            rankings={otherPlayerRankings}
             items={mockItems}
-            itemsPerGame={10}
+            itemsPerGame={5}
             showHeader={true}
-            headerTitle="My Rankings"
-            animate={true}
+            headerTitle="Alex's Rankings"
+            animate={false}
+            compareToRankings={myRankings}
           />
         </div>
       </div>
@@ -1146,12 +1249,12 @@ function EmojiShowcase() {
 
 export default function DesignShowcase() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="relative z-10 min-h-screen">
       {/* Header */}
-      <header className="border-b-2 border-black sticky top-0 bg-white z-50">
+      <header className="sticky top-0 z-50 backdrop-blur-md bg-white/70 border-b-2 border-black/10">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold">Design System</h1>
-          <a href="/" className="text-sm text-neutral-500 hover:text-black flex items-center gap-1">
+          <h1 className="text-xl font-black uppercase tracking-tight">Design System</h1>
+          <a href="/" className="btn-secondary text-sm flex items-center gap-2 px-4 py-2">
             Back to App <ChevronRight className="w-4 h-4" />
           </a>
         </div>
@@ -1160,24 +1263,29 @@ export default function DesignShowcase() {
       {/* Content */}
       <main className="max-w-6xl mx-auto px-4 py-8">
         {/* Intro */}
-        <div className="mb-12 p-6 border-2 border-black bg-neutral-50">
-          <h2 className="text-2xl font-bold mb-2">Rank Everything</h2>
-          <p className="text-neutral-600 mb-4">
-            A mobile-first party game with clean editorial aesthetics. White canvas, bold borders,
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="mb-12 border-2 border-black bg-white shadow-[4px_4px_0_0_#000000] p-6"
+        >
+          <h2 className="text-3xl font-black uppercase tracking-tight mb-2">Rank Everything</h2>
+          <p className="text-black/70 mb-4">
+            A mobile-first party game with clean editorial aesthetics. Animated gradients, bold borders,
             emojis bring the color.
           </p>
           <div className="flex flex-wrap gap-2">
-            <span className="text-xs font-medium uppercase tracking-wide bg-white border border-black px-2 py-1">
+            <span className="text-xs font-bold uppercase tracking-wide bg-black text-white px-3 py-1">
               React + TypeScript
             </span>
-            <span className="text-xs font-medium uppercase tracking-wide bg-white border border-black px-2 py-1">
+            <span className="text-xs font-bold uppercase tracking-wide bg-black text-white px-3 py-1">
               Tailwind CSS
             </span>
-            <span className="text-xs font-medium uppercase tracking-wide bg-white border border-black px-2 py-1">
+            <span className="text-xs font-bold uppercase tracking-wide bg-black text-white px-3 py-1">
               Framer Motion
             </span>
           </div>
-        </div>
+        </motion.div>
 
         {/* Sections */}
         <Section title="Colors">
@@ -1220,6 +1328,10 @@ export default function DesignShowcase() {
           <BadgeShowcase />
         </Section>
 
+        <Section title="Game Status Badge">
+          <GameStatusBadgeShowcase />
+        </Section>
+
         <Section title="Rankings List">
           <RankingsShowcase />
         </Section>
@@ -1238,11 +1350,11 @@ export default function DesignShowcase() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t-2 border-black mt-12 py-6">
-        <div className="max-w-6xl mx-auto px-4 text-center text-sm text-neutral-500">
-          <p>Design System for Rank Everything</p>
-          <p className="mt-1">
-            See <code className="bg-neutral-100 px-1 py-0.5 text-xs">specs/DESIGN_SPEC.md</code> for
+      <footer className="mt-12 py-8 border-t-2 border-black/10">
+        <div className="max-w-6xl mx-auto px-4 text-center">
+          <p className="text-sm font-medium text-black/70">Design System for Rank Everything</p>
+          <p className="mt-1 text-xs text-black/50">
+            See <code className="bg-black/10 px-2 py-0.5 rounded">specs/DESIGN_SPEC.md</code> for
             full documentation
           </p>
         </div>

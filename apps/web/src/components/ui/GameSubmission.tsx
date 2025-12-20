@@ -42,7 +42,7 @@ export function GameSubmission({
   placeholder = COPY.game.enterItem,
 }: GameSubmissionProps) {
   return (
-    <div className="flex flex-col w-full max-w-md mx-auto relative group">
+    <div className="flex flex-col w-full max-w-md mx-auto relative group shadow-[4px_4px_0_0_#000000]">
       {/* Top Row: Emoji + Input */}
       <div className="flex bg-white h-14 border-2 border-black z-10 focus-within:border-black relative inset-highlight">
         {/* Emoji Box */}

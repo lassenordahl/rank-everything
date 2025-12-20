@@ -23,6 +23,7 @@
     "db:migrate": "pnpm --filter @rank-everything/cli run db:migrate",
     "db:seed": "pnpm --filter @rank-everything/cli run db:seed",
     "db:reset": "pnpm --filter @rank-everything/cli run db:reset",
+    "rank": "pnpm --filter @rank-everything/cli run rank",
     "prepare": "husky"
   },
   "lint-staged": {

@@ -18,6 +18,7 @@ This repository follows a **specification-first development approach** with **CL
 | ---------------------------------------------- | -------------------------------------------------------------- |
 | [specs/PROJECT_SPEC.md](specs/PROJECT_SPEC.md) | Full product specification - features, flows, data models, API |
 | [specs/CLI_SPEC.md](specs/CLI_SPEC.md)         | CLI tool for autonomous development, testing, deployment       |
+| [specs/DEPLOYMENT_SPEC.md](specs/DEPLOYMENT_SPEC.md) | Database migrations and deployment management                  |
 
 ## Tech Stack
 
@@ -55,8 +56,11 @@ Run via `pnpm rank <command>` from anywhere in the monorepo:
 pnpm rank setup           # Initialize dev environment
 pnpm rank dev             # Start local development
 pnpm rank db migrate      # Run database migrations
+pnpm rank db migrate --status  # Check migration status
+pnpm rank db migrate:create "description"  # Create new migration
 pnpm rank db seed         # Seed test data
 pnpm rank db reset        # Reset database
+pnpm rank db inspect      # Inspect database schema
 pnpm rank test            # Run tests
 pnpm rank test:spec       # Run spec compliance tests
 pnpm rank room create     # Create test room (--json for structured output)
@@ -65,6 +69,58 @@ pnpm rank deploy          # Deploy to Cloudflare
 ```
 
 See [CLI_SPEC.md](specs/CLI_SPEC.md) for full command reference.
+
+## Database Migrations
+
+The project uses a forward-only migration system with version tracking. See [DEPLOYMENT_SPEC.md](specs/DEPLOYMENT_SPEC.md) for full details.
+
+### Quick Reference for Agents
+
+**When adding a new database table:**
+
+```bash
+# 1. Create the migration file
+pnpm rank db migrate:create "add table_name"
+
+# 2. Edit the file at packages/db-schema/migrations/NNN_add_table_name.sql
+
+# 3. Test locally
+pnpm rank db migrate
+pnpm rank db inspect table_name
+
+# 4. Run tests
+pnpm --filter "@rank-everything/db-schema" test
+```
+
+**When deploying with database changes:**
+
+```bash
+# 1. Deploy API first
+npm run deploy:api
+
+# 2. Run migrations on production
+pnpm rank db migrate --remote
+
+# 3. Verify
+pnpm rank db migrate --status --remote
+
+# 4. Deploy web
+npm run deploy:web
+```
+
+**Migration files are located at:**
+```
+packages/db-schema/migrations/
+├── 001_initial_schema.sql
+├── 002_seed_items.sql
+└── NNN_description.sql
+```
+
+**Key rules:**
+- Never modify an already-applied migration
+- Always create new migrations for schema changes
+- Use `IF NOT EXISTS` and `INSERT OR IGNORE` for idempotency
+- Test locally before deploying to production
 
 ## Working with This Project
 

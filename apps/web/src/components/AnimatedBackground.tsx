@@ -179,15 +179,7 @@ function GradientOrbs() {
           }}
         />
 
-        {/* Green Orb - Bottom Left (desktop only) */}
-        <div
-          className="absolute hidden md:block w-[60vw] h-[60vw] rounded-full opacity-50"
-          style={{
-            backgroundColor: colors.green.DEFAULT,
-            bottom: '-5%',
-            left: '-5%',
-          }}
-        />
+
       </div>
     </div>
   );

@@ -22,6 +22,13 @@ export interface RankingSlotProps {
   interactive?: boolean;
   /** Optional class name override */
   className?: string;
+  /**
+   * Comparison diff: how many slots different from viewer's ranking.
+   * Positive = you ranked this higher (green ↑)
+   * Negative = you ranked this lower (red ↓)
+   * Zero/undefined = same position or no comparison
+   */
+  comparisonDiff?: number | null;
 }
 
 export const RankingSlot = memo(function RankingSlot({
@@ -31,6 +38,7 @@ export const RankingSlot = memo(function RankingSlot({
   disabled = false,
   interactive = false,
   className = '',
+  comparisonDiff,
 }: RankingSlotProps) {
   // Inteactive mode for picking a slot (grids of buttons)
   if (interactive && onClick) {
@@ -50,12 +58,37 @@ export const RankingSlot = memo(function RankingSlot({
     );
   }
 
+  // Render comparison diff badge
+  const renderComparisonBadge = () => {
+    if (comparisonDiff === undefined || comparisonDiff === null || comparisonDiff === 0) {
+      return null;
+    }
+
+    const isHigher = comparisonDiff > 0;
+    const absValue = Math.abs(comparisonDiff);
+
+    return (
+      <span
+        className={`
+          text-xs font-bold px-1.5 py-0.5 rounded flex-shrink-0 inline-flex items-center gap-0.5
+          ${isHigher
+            ? 'text-green-600 bg-green-100'
+            : 'text-red-500 bg-red-100'
+          }
+        `}
+      >
+        <span>{isHigher ? `+${absValue}` : `-${absValue}`}</span>
+        <span>{isHigher ? '↑' : '↓'}</span>
+      </span>
+    );
+  };
+
   // Standard display mode (row in a list)
   return (
     <div
       onClick={interactive && !disabled ? onClick : undefined}
       className={`
-        flex items-center gap-2 p-2 bg-white border-b border-neutral-200 last:border-0 text-sm
+        flex items-baseline gap-2 p-2 bg-white border-b border-neutral-200 last:border-0 text-sm
         ${interactive && !disabled ? 'cursor-pointer hover:bg-neutral-50 active:bg-neutral-100' : ''}
         ${disabled ? 'opacity-50 cursor-not-allowed bg-neutral-50' : ''}
         ${className}
@@ -65,11 +98,14 @@ export const RankingSlot = memo(function RankingSlot({
         {rank}.
       </span>
       {item ? (
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <span className="truncate font-medium">{item.text}</span>
-          {item.emoji && (
-            <span className="ml-auto pl-1 flex-shrink-0 text-lg leading-none">{item.emoji}</span>
-          )}
+        <div className="flex items-baseline gap-2 min-w-0 flex-1">
+          <span className="font-medium break-words leading-tight">{item.text}</span>
+          <div className="ml-auto flex items-baseline gap-1.5 flex-shrink-0">
+            {renderComparisonBadge()}
+            {item.emoji && (
+              <span className="text-lg leading-none">{item.emoji}</span>
+            )}
+          </div>
         </div>
       ) : (
         <span className="text-neutral-300">-</span>

@@ -29,6 +29,13 @@ export interface RankingListProps {
   headerTitle?: string;
   /** Animate items */
   animate?: boolean;
+  /** Optional class name override */
+  className?: string;
+  /**
+   * Compare these rankings against another player's rankings.
+   * Pass the viewer's rankings to show diff indicators.
+   */
+  compareToRankings?: Record<string, number>;
 }
 
 export const RankingList = memo(function RankingList({
@@ -41,6 +48,8 @@ export const RankingList = memo(function RankingList({
   showHeader = true,
   headerTitle = 'My Rankings',
   animate = true,
+  className = '',
+  compareToRankings,
 }: RankingListProps) {
   // Build ranking -> item lookup
   const rankToItem = new Map<number, Pick<Item, 'id' | 'text' | 'emoji'>>();
@@ -51,10 +60,26 @@ export const RankingList = memo(function RankingList({
     }
   }
 
+  // Calculate comparison diff for each item
+  // diff = viewer's rank - this player's rank
+  // Positive means viewer ranked it higher (better), negative means lower
+  const getComparisonDiff = (itemId: string | undefined): number | null => {
+    if (!compareToRankings || !itemId) return null;
+
+    const thisRank = rankings[itemId];
+    const viewerRank = compareToRankings[itemId];
+
+    if (thisRank === undefined || viewerRank === undefined) return null;
+
+    // If viewer ranked it #1 and this player ranked it #3, diff is 3-1 = +2 (viewer ranked higher)
+    // If viewer ranked it #3 and this player ranked it #1, diff is 1-3 = -2 (viewer ranked lower)
+    return thisRank - viewerRank;
+  };
+
   const slots = Array.from({ length: itemsPerGame }, (_, i) => i + 1);
 
   return (
-    <div className="border-2 border-black bg-white card-shadow w-full max-w-sm mx-auto">
+    <div className={`border-2 border-black bg-white card-shadow w-full max-w-sm mx-auto ${className}`.trim()}>
       {showHeader && (
         <div className="border-b-2 border-black px-3 py-2">
           <h3 className="font-bold text-xs uppercase tracking-wide">{headerTitle}</h3>
@@ -63,6 +88,8 @@ export const RankingList = memo(function RankingList({
       <div className="p-3 space-y-0.5">
         {slots.map((rank, index) => {
           const item = rankToItem.get(rank);
+          const comparisonDiff = getComparisonDiff(item?.id);
+
           // Always use motion.div to ensure consistent hook count between renders
           // Conditionally apply animation props instead of switching wrapper components
           return (
@@ -78,6 +105,7 @@ export const RankingList = memo(function RankingList({
                 onClick={onSlotClick ? () => onSlotClick(rank) : undefined}
                 disabled={usedSlots.has(rank)}
                 interactive={interactive}
+                comparisonDiff={comparisonDiff}
               />
             </motion.div>
           );

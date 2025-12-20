@@ -1,227 +1,146 @@
 /**
  * Tests for EmojiLLM Service
  *
- * Tests the embedding-based emoji classification system.
- * These tests run against the actual model to verify expected emoji outputs.
- *
- * Note: These tests require the model to be loaded, which takes time on first run.
- * The results are deterministic given the same model and emoji database.
+ * Tests the worker-based emoji classification architecture.
+ * Since the actual model loading happens in a worker (which requires a browser-like environment
+ * and proper worker support), these tests focus on the message passing interface.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// Mock the transformers library since we can't load ONNX models in Node test environment
-vi.mock('@huggingface/transformers', () => ({
-  pipeline: vi.fn(),
-  env: {
-    allowLocalModels: false,
-    useBrowserCache: true,
-  },
+// Mock the Worker class and import
+const postMessageMock = vi.fn();
+const terminateMock = vi.fn();
+
+// We need a way to trigger onmessage from the test
+let workerOnMessage: ((event: MessageEvent) => void) | null = null;
+
+class MockWorker {
+  postMessage = postMessageMock;
+  terminate = terminateMock;
+  onmessage: ((event: MessageEvent) => void) | null = null;
+
+  constructor() {
+    // Capture the onmessage setter to simulate worker responses
+    /* eslint-disable @typescript-eslint/no-this-alias */
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const self = this;
+
+    // We proxy the onmessage assignment to capture the handler
+    return new Proxy(this, {
+      set(target, prop, value) {
+        if (prop === 'onmessage') {
+          workerOnMessage = value;
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (target as any)[prop] = value;
+        return true;
+      }
+    });
+  }
+}
+
+// Mock the import for the worker
+vi.mock('./emojiWorker?worker', () => ({
+  default: MockWorker
 }));
 
 describe('EmojiLLM', () => {
-  describe('Emoji Database Coverage', () => {
-    it('should have a comprehensive emoji database', async () => {
-      // Import after mocks are set up
-      const { emojiLLM } = await import('../lib/emojiLLM');
-
-      // Access the private emoji database via the module
-      // We can't directly access it, so we test indirectly
-      expect(emojiLLM).toBeDefined();
-    });
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    workerOnMessage = null;
   });
 
-  describe('cosineSimilarity function', () => {
-    it('should calculate similarity correctly for identical vectors', () => {
-      // Test cosine similarity logic
-      const cosineSimilarity = (a: number[], b: number[]): number => {
-        if (a.length !== b.length) return 0;
-        let dotProduct = 0;
-        let normA = 0;
-        let normB = 0;
-        for (let i = 0; i < a.length; i++) {
-          dotProduct += a[i] * b[i];
-          normA += a[i] * a[i];
-          normB += b[i] * b[i];
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should initialize worker on first use', async () => {
+    // Re-import to get a fresh instance if possible, or just use the singleton
+    // Since it's a singleton, we might be sharing state across tests, so we need to be careful
+    // For this test file, we'll just test the interaction
+    const { emojiLLM } = await import('../lib/emojiLLM');
+
+    // Trigger initialization
+    const initPromise = emojiLLM.initialize();
+
+    // Worker should be instantiated (implied by the mock being used) and receive initialize message
+    expect(postMessageMock).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'initialize'
+    }));
+
+    // Simulate worker ready response
+    if (workerOnMessage) {
+        workerOnMessage({ data: { type: 'ready' } } as MessageEvent);
+    }
+
+    await initPromise;
+    expect(emojiLLM.state.state).toBe('ready');
+  });
+
+  it('should send classify message and return result', async () => {
+    const { emojiLLM } = await import('../lib/emojiLLM');
+
+    // Simulate ready state if not already
+    if (!emojiLLM.ready) {
+        const initPromise = emojiLLM.initialize();
+        if (workerOnMessage) {
+            workerOnMessage({ data: { type: 'ready' } } as MessageEvent);
         }
-        const denominator = Math.sqrt(normA) * Math.sqrt(normB);
-        return denominator === 0 ? 0 : dotProduct / denominator;
-      };
+        await initPromise;
+    }
 
-      // Identical vectors should have similarity of 1
-      expect(cosineSimilarity([1, 0, 0], [1, 0, 0])).toBeCloseTo(1);
+    // Start classification
+    const classifyPromise = emojiLLM.classifyEmoji('pizza');
 
-      // Orthogonal vectors should have similarity of 0
-      expect(cosineSimilarity([1, 0, 0], [0, 1, 0])).toBeCloseTo(0);
+    // Should verify postMessage was called with correct data
+    expect(postMessageMock).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'classify',
+      text: 'pizza'
+    }));
 
-      // Opposite vectors should have similarity of -1
-      expect(cosineSimilarity([1, 0, 0], [-1, 0, 0])).toBeCloseTo(-1);
+    // Extract the ID from the last call to respond correctly
+    const lastCall = postMessageMock.mock.calls[postMessageMock.mock.calls.length - 1][0];
+    const requestId = lastCall.id;
 
-      // Similar vectors should have high similarity
-      expect(cosineSimilarity([1, 1, 0], [1, 0.9, 0.1])).toBeGreaterThan(0.9);
-    });
+    // Simulate worker result
+    if (workerOnMessage) {
+        workerOnMessage({
+            data: {
+                type: 'result',
+                emoji: '🍕',
+                id: requestId
+            }
+        } as MessageEvent);
+    }
+
+    const result = await classifyPromise;
+    expect(result).toBe('🍕');
   });
 
-  describe('State Management', () => {
-    it('should start in idle state', async () => {
-      const { emojiLLM } = await import('../lib/emojiLLM');
+  it('should handle timeout gracefully', async () => {
+    const { emojiLLM } = await import('../lib/emojiLLM');
+    vi.useFakeTimers();
 
-      const state = emojiLLM.state;
-      // May be idle or loading depending on test order
-      expect(['idle', 'loading', 'ready', 'error']).toContain(state.state);
-    });
-
-    it('should support subscription for state changes', async () => {
-      const { emojiLLM } = await import('../lib/emojiLLM');
-
-      const states: string[] = [];
-      const unsubscribe = emojiLLM.subscribe((state) => {
-        states.push(state.state);
-      });
-
-      // Should receive current state immediately
-      expect(states.length).toBeGreaterThan(0);
-
-      unsubscribe();
-    });
-  });
-});
-
-/**
- * Integration test expectations for when the model is actually loaded.
- * These serve as documentation of expected behavior.
- */
-describe('EmojiLLM Expected Outputs (Integration)', () => {
-  describe('Food & Drink', () => {
-    const expectedMappings = [
-      { input: 'orange', expected: '🍊', description: 'citrus fruit' },
-      { input: 'apple', expected: '🍎', description: 'red fruit' },
-      { input: 'banana', expected: '🍌', description: 'yellow fruit' },
-      { input: 'pizza', expected: '🍕', description: 'italian food' },
-      { input: 'hamburger', expected: '🍔', description: 'fast food' },
-      { input: 'coffee', expected: '☕', description: 'hot drink' },
-      { input: 'beer', expected: '🍺', description: 'alcohol' },
-      { input: 'ice cream', expected: '🍦', description: 'dessert' },
-    ];
-
-    it.each(expectedMappings)(
-      'should map "$input" to $expected ($description)',
-      ({ input, expected }) => {
-        // This documents expected behavior
-        // In a real integration test with model loaded:
-        // const emoji = await emojiLLM.classifyEmoji(input);
-        // expect(emoji).toBe(expected);
-        expect(expected).toBeDefined();
-        expect(input).toBeDefined();
+    // Ensure ready
+    if (!emojiLLM.ready) {
+      const initPromise = emojiLLM.initialize();
+      if (workerOnMessage) {
+        workerOnMessage({ data: { type: 'ready' } } as MessageEvent);
       }
-    );
-  });
+      await initPromise;
+    }
 
-  describe('Animals', () => {
-    const expectedMappings = [
-      { input: 'dog', expected: '🐶', description: 'pet' },
-      { input: 'cat', expected: '🐱', description: 'pet' },
-      { input: 'lion', expected: '🦁', description: 'wild animal' },
-      { input: 'shark', expected: '🦈', description: 'ocean predator' },
-      { input: 'butterfly', expected: '🦋', description: 'insect' },
-    ];
+    const classifyPromise = emojiLLM.classifyEmoji('slow request');
 
-    it.each(expectedMappings)(
-      'should map "$input" to $expected ($description)',
-      ({ input, expected }) => {
-        expect(expected).toBeDefined();
-        expect(input).toBeDefined();
-      }
-    );
-  });
+    // Fast forward time past 10s timeout
+    vi.advanceTimersByTime(11000);
 
-  describe('Emotions', () => {
-    const expectedMappings = [
-      { input: 'happy', expected: '😀', description: 'positive emotion' },
-      { input: 'sad', expected: '😢', description: 'negative emotion' },
-      { input: 'angry', expected: '😡', description: 'negative emotion' },
-      { input: 'love', expected: '❤️', description: 'affection' },
-      { input: 'scared', expected: '😱', description: 'fear' },
-    ];
+    // Should resolve with fallback
+    const result = await classifyPromise;
+    expect(result).toBe('🎲');
 
-    it.each(expectedMappings)(
-      'should map "$input" to $expected ($description)',
-      ({ input, expected }) => {
-        expect(expected).toBeDefined();
-        expect(input).toBeDefined();
-      }
-    );
-  });
-
-  describe('Activities & Objects', () => {
-    const expectedMappings = [
-      { input: 'soccer', expected: '⚽', description: 'sport' },
-      { input: 'video game', expected: '🎮', description: 'gaming' },
-      { input: 'music', expected: '🎵', description: 'audio' },
-      { input: 'rocket', expected: '🚀', description: 'space' },
-      { input: 'computer', expected: '💻', description: 'technology' },
-      { input: 'money', expected: '💰', description: 'wealth' },
-      { input: 'party', expected: '🎉', description: 'celebration' },
-    ];
-
-    it.each(expectedMappings)(
-      'should map "$input" to $expected ($description)',
-      ({ input, expected }) => {
-        expect(expected).toBeDefined();
-        expect(input).toBeDefined();
-      }
-    );
-  });
-
-  describe('Sentences', () => {
-    const expectedMappings = [
-      { input: 'I love eating pizza', expected: '🍕', description: 'food context' },
-      { input: 'My dog is cute', expected: '🐶', description: 'animal context' },
-      { input: 'Playing basketball today', expected: '🏀', description: 'sport context' },
-      { input: 'Going to the beach', expected: '🌊', description: 'nature context' },
-      { input: 'Drinking coffee in morning', expected: '☕', description: 'drink context' },
-    ];
-
-    it.each(expectedMappings)(
-      'should extract primary concept from "$input" → $expected',
-      ({ input, expected }) => {
-        expect(expected).toBeDefined();
-        expect(input).toBeDefined();
-      }
-    );
-  });
-});
-
-/**
- * Emoji Database Validation
- */
-describe('Emoji Database', () => {
-  it('should have emoji entries with required fields', async () => {
-    // This validates the structure of our emoji database
-    const expectedCategories = [
-      'Food & Drink',
-      'Animals',
-      'Nature & Weather',
-      'Activities & Sports',
-      'Objects',
-      'Emotions & Symbols',
-    ];
-
-    // Each category should be represented
-    expect(expectedCategories.length).toBe(6);
-  });
-
-  it('should use valid emoji characters', () => {
-    const emojiRegex =
-      // eslint-disable-next-line no-misleading-character-class
-      /^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{1FA00}-\u{1FAFF}\u{2300}-\u{23FF}\u{2B50}\u{2B55}\u{203C}\u{2049}\u{20E3}\u{00A9}\u{00AE}\u{2764}\u{FE0F}]+$/u;
-
-    const testEmojis = ['🍊', '🐶', '😀', '🚀', '❤️', '☕', '⭐'];
-
-    testEmojis.forEach((emoji) => {
-      // Remove variation selectors for testing
-      const baseEmoji = emoji.replace(/\uFE0F/g, '');
-      expect(emojiRegex.test(baseEmoji) || baseEmoji === '❤').toBe(true);
-    });
+    vi.useRealTimers();
   });
 });

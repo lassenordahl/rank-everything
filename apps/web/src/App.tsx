@@ -5,6 +5,7 @@ import GameView from './components/GameView';
 import DesignShowcase from './pages/DesignShowcase';
 import { usePreloadLLM } from './hooks/useEmojiClassifier';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { AnimatedBackground } from './components/AnimatedBackground';
 
 /**
  * Route wrapper that extracts the room code and uses it as a key.
@@ -35,6 +36,7 @@ function App() {
 
   return (
     <div className="min-h-full flex flex-col">
+      <AnimatedBackground />
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/design" element={<DesignShowcase />} />
