@@ -1,20 +1,6 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { COPY } from '../src/lib/copy';
-
-// Reuse logging helper
-const setupLogging = (page: Page, name: string) => {
-  page.on('console', (msg) => {
-    if (
-      msg.type() === 'error' ||
-      msg.type() === 'warning' ||
-      msg.text().includes('Room') ||
-      msg.text().includes('Config') ||
-      msg.text().includes('Game')
-    ) {
-      console.log(`[${name}] ${msg.type().toUpperCase()}: ${msg.text()}`);
-    }
-  });
-};
+import { setupLogging, createRoom, startGame } from './fixtures';
 
 test.describe('Room Rejoining & Late Join', () => {
   test('should allow host to reload page and resume session', async ({ browser }) => {
@@ -24,13 +10,7 @@ test.describe('Room Rejoining & Late Join', () => {
 
     try {
       console.log('--- Host Rejoin Test Start ---');
-      await page.goto('/');
-      await page.getByRole('button', { name: COPY.buttons.createRoom }).click();
-      await page.getByPlaceholder(COPY.placeholders.nickname).fill('ResilientHost');
-      await page.getByRole('button', { name: COPY.buttons.create }).click();
-      await page.waitForURL(/\/[A-Z]{4}$/);
-      const roomCode = page.url().split('/').pop() || '';
-      console.log(`Room created: ${roomCode}`);
+      const roomCode = await createRoom(page, 'ResilientHost');
 
       // Verify connected
       await expect(page.getByText('ResilientHost')).toBeVisible();
@@ -70,12 +50,12 @@ test.describe('Room Rejoining & Late Join', () => {
         : 'https://rank-everything.lassenordahl.partykit.dev';
 
       // Create Custom Room via API for speed
-      const roomCode = Array.from({ length: 4 }, () =>
+      const roomCodeVal = Array.from({ length: 4 }, () =>
         String.fromCharCode(65 + Math.floor(Math.random() * 26))
       ).join('');
 
-      console.log(`[LateJoin] Creating room ${roomCode} via API`);
-      await hostPage.request.post(`${apiBase}/party/${roomCode}`, {
+      console.log(`[LateJoin] Creating room ${roomCodeVal} via API`);
+      await hostPage.request.post(`${apiBase}/party/${roomCodeVal}`, {
         data: {
           action: 'create',
           nickname: 'Host',
@@ -84,27 +64,18 @@ test.describe('Room Rejoining & Late Join', () => {
       });
 
       // Host joins
-      await hostPage.goto(`/${roomCode}`);
-      // Hydrate localstorage for host (hacky but fast, or just join normally)
-      // Actually, joining via UI is safer to ensure WS connection is fresh
-      // But we need to reclaim host. For this test, let's just use UI to create if API is annoying,
-      // but API is faster. Let's use the UI join flow for host to keep it simple and reliable.
+      await hostPage.goto(`/${roomCodeVal}`);
     } catch {
       // Fallback if API fails
     }
 
     // RESTARTING pure UI flow for reliability
-    await hostPage.goto('/');
-    await hostPage.getByRole('button', { name: COPY.buttons.createRoom }).click();
-    await hostPage.getByPlaceholder(COPY.placeholders.nickname).fill('MainHost');
-    // Configure game? Default is fine, we just need to start.
-    await hostPage.getByRole('button', { name: COPY.buttons.create }).click();
-    await hostPage.waitForURL(/\/[A-Z]{4}$/);
-    const roomCode = hostPage.url().split('/').pop() || '';
+    // We can use createRoom wrapper here
+    const roomCode = await createRoom(hostPage, 'MainHost');
     console.log(`[LateJoin] UI Room created: ${roomCode}`);
 
     // Start Game
-    await hostPage.getByRole('button', { name: COPY.buttons.startGame }).click();
+    await startGame(hostPage);
     await expect(hostPage.getByText(COPY.game.yourTurn)).toBeVisible();
 
     // Submit Item 1

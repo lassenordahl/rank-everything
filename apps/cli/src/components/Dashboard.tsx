@@ -32,7 +32,7 @@ const Cube = ({
     marginX={1}
   >
     <Text color="gray">{title}</Text>
-    <Text bold color={color} size={25}>
+    <Text bold color={color}>
       {value}
     </Text>
     {subtext && (
@@ -55,9 +55,11 @@ const MultiLineChart = ({
   height?: number;
   width?: number;
 }) => {
-  // Flatten data to find max value for scaling
-  const allValues = datasets.flatMap((d) => d.data);
-  const maxValue = Math.max(...allValues, 10); // Minimum scale of 10
+  // Flatten data to find max value for scaling (filter out nulls/undefined)
+  const allValues = datasets
+    .flatMap((d) => d.data)
+    .filter((v): v is number => v != null && !isNaN(v));
+  const maxValue = allValues.length > 0 ? Math.max(...allValues, 10) : 10; // Minimum scale of 10
 
   const getPointHeight = (value: number) => Math.round((value / maxValue) * (height - 1));
 
@@ -190,33 +192,36 @@ export const Dashboard = ({ service }: { service: DashboardService }) => {
   useEffect(() => {
     let mounted = true;
     let lastItemsCount = 0;
+    const abortController = new AbortController();
 
     const fetchStats = async () => {
+      if (!mounted) return;
+
       try {
-        const s = await service.getSystemStatus();
+        const s = await service.getSystemStatus(abortController.signal);
         if (!mounted) return;
 
         setStatus(s);
         setLoading(false);
 
-        // Update History
+        // Update History (ensure all values are numbers, not null)
         setHistory((prev) => {
           // Max 60 points for the new width
           const maxPoints = 60;
 
-          const newRooms = [...prev.rooms, s.activeRooms].slice(-maxPoints);
-
-          // Mock users as 2x rooms + random jitter for demo vitality
-          const newUsers = [...prev.users, s.activeUsers].slice(-maxPoints);
+          const newRooms = [...prev.rooms, s.activeRooms ?? 0].slice(-maxPoints);
+          const newUsers = [...prev.users, s.activeUsers ?? 0].slice(-maxPoints);
 
           // Rankings rate: Delta of items
-          const delta = lastItemsCount > 0 ? Math.max(0, s.itemsCount - lastItemsCount) : 0;
-          lastItemsCount = s.itemsCount;
+          const delta = lastItemsCount > 0 ? Math.max(0, (s.itemsCount ?? 0) - lastItemsCount) : 0;
+          lastItemsCount = s.itemsCount ?? 0;
           const newRankings = [...prev.rankings, delta].slice(-maxPoints);
 
           return { rooms: newRooms, users: newUsers, rankings: newRankings };
         });
       } catch (err) {
+        // Ignore abort errors
+        if (err instanceof Error && err.name === 'AbortError') return;
         if (mounted) setError(String(err));
       }
     };
@@ -225,6 +230,7 @@ export const Dashboard = ({ service }: { service: DashboardService }) => {
     const interval = setInterval(fetchStats, 5000);
     return () => {
       mounted = false;
+      abortController.abort();
       clearInterval(interval);
     };
   }, [service]);
@@ -266,9 +272,14 @@ export const Dashboard = ({ service }: { service: DashboardService }) => {
 
       {/* Top Row: Key Metrics Cubes */}
       <Box flexDirection="row" marginBottom={1}>
-        <Cube title="Active Rooms" value={status.activeRooms} color="magenta" subtext="Live" />
-        <Cube title="Active Users" value={status.activeUsers} color="green" subtext="Estimated" />
-        <Cube title="Total Items" value={status.itemsCount} color="cyan" subtext="Global DB" />
+        <Cube title="Active Rooms" value={status.activeRooms ?? 0} color="magenta" subtext="Live" />
+        <Cube
+          title="Active Users"
+          value={status.activeUsers ?? 0}
+          color="green"
+          subtext="Connected"
+        />
+        <Cube title="Total Items" value={status.itemsCount ?? 0} color="cyan" subtext="All Time" />
         <Cube
           title="DB Status"
           value={status.dbConnection ? 'OK' : 'ERR'}
@@ -283,9 +294,11 @@ export const Dashboard = ({ service }: { service: DashboardService }) => {
 
       {/* Bottom Row: Live Feed */}
       <Box flexDirection="column" borderStyle="single" borderColor="gray" padding={1} marginX={1}>
-        <Text bold underline marginBottom={1}>
-          Live Item Feed
-        </Text>
+        <Box marginBottom={1}>
+          <Text bold underline>
+            Live Item Feed
+          </Text>
+        </Box>
         {status.recentItems.length === 0 ? (
           <Text italic color="gray">
             No items found
@@ -297,7 +310,7 @@ export const Dashboard = ({ service }: { service: DashboardService }) => {
                 {item.emoji} {item.text}
               </Text>
               <Text color="gray" dimColor>
-                {new Date(item.created_at).toLocaleTimeString()}
+                {new Date(item.createdAt).toLocaleTimeString()}
               </Text>
             </Box>
           ))

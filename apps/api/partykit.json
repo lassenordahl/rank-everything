@@ -2,5 +2,8 @@
   "$schema": "https://www.partykit.io/schema.json",
   "name": "rank-everything",
   "main": "src/server.ts",
-  "compatibilityDate": "2024-01-01"
+  "compatibilityDate": "2024-01-01",
+  "vars": {
+    "WORKER_URL": "https://rank-everything-api.lasseanordahl.workers.dev"
+  }
 }

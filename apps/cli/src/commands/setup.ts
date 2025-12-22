@@ -43,7 +43,7 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
   try {
     execSync('pnpm install', { cwd: rootDir, stdio: 'pipe' });
     depsSpinner.succeed('Dependencies installed');
-  } catch {
+  } catch (error) {
     depsSpinner.fail('Failed to install dependencies');
     console.error(error);
     process.exit(1);

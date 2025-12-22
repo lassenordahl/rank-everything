@@ -77,6 +77,8 @@ export const roomCommands = {
         submissionMode,
         timerEnabled: timerDuration > 0,
         timerDuration,
+        itemsPerGame: 10,
+        rankingTimeout: 30, // Default 30s
       },
       status: options.started ? 'in-progress' : 'lobby',
       players,
@@ -84,6 +86,7 @@ export const roomCommands = {
       currentTurnPlayerId: options.started ? players[0].id : null,
       currentTurnIndex: 0,
       timerEndAt: null,
+      rankingTimerEndAt: null,
       createdAt: Date.now(),
       lastActivityAt: Date.now(),
     };

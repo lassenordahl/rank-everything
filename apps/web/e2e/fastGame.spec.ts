@@ -5,38 +5,11 @@
  * This allows efficient testing of: lobby → in-progress → ended → rematch
  */
 
-import type { Page } from '@playwright/test';
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { COPY } from '../src/lib/copy';
+import { setupLogging, createRoom, startGame } from './fixtures';
 
-// Helper to setup logging
-const setupLogging = (page: Page, name: string) => {
-  page.on('console', (msg) => {
-    if (msg.type() === 'error' || msg.text().includes('Room') || msg.text().includes('game')) {
-      console.log(`[${name}] ${msg.type().toUpperCase()}: ${msg.text()}`);
-    }
-  });
-};
-
-// Create room with custom itemsPerGame via API
-const createFastRoom = async (
-  page: Page,
-  nickname: string,
-  _itemsPerGame: number = 3
-): Promise<string> => {
-  await page.goto('/');
-  await page.getByRole('button', { name: COPY.buttons.createRoom }).click();
-  await page.getByPlaceholder(COPY.placeholders.nickname).fill(nickname);
-
-  // For now, we can't pass itemsPerGame through the UI
-  // The room will use default 10, but we can still test faster with fewer items
-  await page.getByRole('button', { name: COPY.buttons.create }).click();
-  await page.waitForURL(/\/[A-Z]{4}$/, { timeout: 15000 });
-
-  return page.url().split('/').pop() || '';
-};
-
-// Quick item submission
+// Quick item submission helper (local to this test as it's specific)
 const submitItem = async (page: Page, item: string) => {
   const input = page.getByPlaceholder(COPY.game.enterItem);
   await input.fill(item);
@@ -50,10 +23,10 @@ test.describe('Fast Game Cycle (3 items)', () => {
     setupLogging(page, 'FastGame');
 
     // Create room
-    await createFastRoom(page, 'FastGameHost');
+    await createRoom(page, 'FastGameHost');
 
     // Start game
-    await page.getByRole('button', { name: COPY.buttons.startGame }).click();
+    await startGame(page);
     await page.waitForURL(/\/game\/[A-Z]{4}$/, { timeout: 15000 });
 
     // Submit items (testing game flow even if we can't control itemsPerGame yet)
@@ -75,8 +48,8 @@ test.describe('Fast Game Cycle (3 items)', () => {
   test('should show turn indicator and timer', async ({ page }) => {
     setupLogging(page, 'TurnTimer');
 
-    await createFastRoom(page, 'TurnTimerHost');
-    await page.getByRole('button', { name: COPY.buttons.startGame }).click();
+    await createRoom(page, 'TurnTimerHost');
+    await startGame(page);
     await page.waitForURL(/\/game\/[A-Z]{4}$/, { timeout: 15000 });
 
     // Should show "Your turn!"
@@ -89,8 +62,8 @@ test.describe('Fast Game Cycle (3 items)', () => {
   test('should allow ranking of submitted items', async ({ page }) => {
     setupLogging(page, 'Ranking');
 
-    await createFastRoom(page, 'RankingHost');
-    await page.getByRole('button', { name: COPY.buttons.startGame }).click();
+    await createRoom(page, 'RankingHost');
+    await startGame(page);
     await page.waitForURL(/\/game\/[A-Z]{4}$/, { timeout: 15000 });
 
     // Submit an item
@@ -108,7 +81,7 @@ test.describe('Game State Transitions', () => {
   test('lobby → in-progress: start game', async ({ page }) => {
     setupLogging(page, 'StartGame');
 
-    await createFastRoom(page, 'StateTestHost');
+    await createRoom(page, 'StateTestHost');
 
     // In lobby
     await expect(page.getByRole('button', { name: COPY.buttons.startGame })).toBeVisible({
@@ -116,7 +89,7 @@ test.describe('Game State Transitions', () => {
     });
 
     // Start game
-    await page.getByRole('button', { name: COPY.buttons.startGame }).click();
+    await startGame(page);
 
     // Now in game
     await page.waitForURL(/\/game\/[A-Z]{4}$/, { timeout: 15000 });

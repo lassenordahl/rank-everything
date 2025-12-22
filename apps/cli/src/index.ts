@@ -4,6 +4,11 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { config } from 'dotenv';
 
+// Handle Ctrl+C immediately
+process.on('SIGINT', () => {
+  process.exit(0);
+});
+
 // Load environment variables
 config({ path: '../../.env' });
 
@@ -16,6 +21,8 @@ import { roomCommands } from './commands/room.js';
 import { deployCommands } from './commands/deploy.js';
 import { docsCommand } from './commands/docs.js';
 import { dashboardCommand } from './commands/dashboard.js';
+import { logsCommands } from './commands/logs.js';
+import { itemsCommands } from './commands/items.js';
 
 const program = new Command();
 
@@ -165,6 +172,67 @@ program
   .option('--remote', 'Use remote database')
   .option('--prod', 'Use production database')
   .action(dashboardCommand);
+
+// Logs commands
+const logs = program.command('logs').description('Query client error logs');
+
+logs
+  .command('list')
+  .description('List recent error logs')
+  .option('--limit <count>', 'Number of logs to fetch', '50')
+  .option('--level <level>', 'Filter by level (error, warn, info)')
+  .option('--type <type>', 'Filter by error type')
+  .option('--local', 'Query local database (default)')
+  .option('--remote', 'Query remote/production database')
+  .action(logsCommands.list);
+
+logs
+  .command('search')
+  .description('Search logs by message')
+  .argument('<query>', 'Search query')
+  .option('--limit <count>', 'Max results', '50')
+  .option('--local', 'Query local database (default)')
+  .option('--remote', 'Query remote/production database')
+  .action(logsCommands.search);
+
+logs
+  .command('session')
+  .description('View all logs for a session')
+  .argument('<sessionId>', 'Session ID')
+  .option('--local', 'Query local database (default)')
+  .option('--remote', 'Query remote/production database')
+  .action(logsCommands.session);
+
+logs
+  .command('clear')
+  .description('Clear old logs')
+  .option('--days <days>', 'Keep logs from last N days', '7')
+  .option('--force', 'Skip confirmation')
+  .option('--local', 'Clear local database (default)')
+  .option('--remote', 'Clear remote/production database')
+  .action(logsCommands.clear);
+
+// Items commands
+const items = program.command('items').description('Manage global items pool');
+
+items
+  .command('list')
+  .description('List global items')
+  .option('--limit <count>', 'Number of items to show', '50')
+  .option('--search <query>', 'Filter by text')
+  .option('--json', 'Output as JSON')
+  .option('--local', 'Use local database (default)')
+  .option('--remote', 'Use remote/production database')
+  .action(itemsCommands.list);
+
+items
+  .command('add')
+  .description('Add item to global pool')
+  .argument('<text>', 'Item text')
+  .argument('<emoji>', 'Item emoji')
+  .option('--local', 'Use local database (default)')
+  .option('--remote', 'Use remote/production database')
+  .action(itemsCommands.add);
 
 // Version with all packages
 program

@@ -57,7 +57,6 @@ export default [
       '@typescript-eslint/ban-ts-comment': 'error',
       '@typescript-eslint/no-unsafe-function-type': 'error',
       '@typescript-eslint/no-non-null-assertion': 'error',
-      '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
       'no-undef': 'off', // TypeScript handles this
       'no-case-declarations': 'error',
       'no-empty': 'error',

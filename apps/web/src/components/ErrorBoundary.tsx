@@ -1,5 +1,6 @@
 import type { ErrorInfo, ReactNode } from 'react';
 import { Component } from 'react';
+import { loggingService } from '../lib/loggingService';
 
 interface Props {
   children: ReactNode;
@@ -23,6 +24,18 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught error:', error, errorInfo);
+
+    // Log to server
+    loggingService.log({
+      level: 'error',
+      type: 'error_boundary',
+      message: error.message,
+      stack: error.stack,
+      componentStack: errorInfo.componentStack || undefined,
+      timestamp: Date.now(),
+      url: window.location.href,
+      userAgent: navigator.userAgent,
+    });
   }
 
   private handleReload = () => {

@@ -46,6 +46,14 @@ export function useEmojiClassifier(text: string, debounceMs: number = 500): Emoj
   const lastTextRef = useRef('');
 
   useEffect(() => {
+    // Start initializing the model as soon as this hook is used (component mounted)
+    // This ensures it's ready/loading when the user starts typing
+    emojiLLM.initialize().catch(() => {
+      // Ignore errors here, they will be caught during classification
+    });
+  }, []);
+
+  useEffect(() => {
     // Clear previous timeout
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -109,9 +117,15 @@ export function useEmojiClassifier(text: string, debounceMs: number = 500): Emoj
 /**
  * Hook to preload the LLM model
  * Call this early in the app lifecycle to start loading the model in the background
+ * @param options.skip - If true, don't preload (useful for mobile to save memory)
  */
-export function usePreloadLLM() {
+export function usePreloadLLM(options?: { skip?: boolean }) {
   useEffect(() => {
+    // Skip if requested (e.g., on mobile to prevent OOM)
+    if (options?.skip) {
+      return;
+    }
+
     // Use requestIdleCallback for non-blocking load if available
     if ('requestIdleCallback' in window) {
       const id = window.requestIdleCallback(
@@ -130,5 +144,5 @@ export function usePreloadLLM() {
 
       return () => clearTimeout(timeout);
     }
-  }, []);
+  }, [options?.skip]);
 }

@@ -147,3 +147,34 @@ export const MIN_PLAYERS = 2;
 export const DEFAULT_TIMER_DURATION = 60;
 export const DEFAULT_ROOM_TTL_MINUTES = 10;
 export const DEFAULT_ITEMS_PER_GAME = 10;
+
+// Client Logging Types
+export interface ClientLogEntry {
+  id: string;
+  sessionId: string;
+  timestamp: number;
+  level: 'error' | 'warn' | 'info';
+  type:
+    | 'unhandled_error'
+    | 'unhandled_rejection'
+    | 'error_boundary'
+    | 'websocket'
+    | 'webgpu'
+    | 'console'
+    | 'page_hidden'
+    | 'page_hide'
+    | 'crash_test'
+    | 'test'
+    | 'verification_test';
+  message: string;
+  stack?: string;
+  componentStack?: string;
+  context?: Record<string, unknown>;
+  userAgent: string;
+  roomCode?: string;
+  url: string;
+}
+
+export interface ClientLogRequest {
+  logs: Omit<ClientLogEntry, 'id'>[];
+}

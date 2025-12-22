@@ -260,7 +260,13 @@ export default function GameView() {
                   {isAutoRanking ? 'Auto-assigning last slot...' : COPY.game.chooseSlot}
                 </p>
 
-                <div className="grid grid-cols-5 gap-2">
+                <div
+                  className={
+                    itemsPerGame === 10
+                      ? 'grid grid-cols-5 gap-2'
+                      : 'flex flex-wrap justify-center gap-2'
+                  }
+                >
                   {Array.from({ length: itemsPerGame }, (_, i) => i + 1).map((n) => (
                     <RankingSlot
                       key={n}
@@ -269,6 +275,7 @@ export default function GameView() {
                       onClick={() => handleRankItem(n)}
                       disabled={usedSlots.has(n) || isAutoRanking}
                       interactive={true}
+                      className={itemsPerGame !== 10 ? 'w-14 sm:w-16' : ''}
                     />
                   ))}
                 </div>

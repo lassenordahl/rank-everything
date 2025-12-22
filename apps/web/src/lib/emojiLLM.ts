@@ -3,10 +3,14 @@
  *
  * Wraps the emojiWorker to provide a clean promise-based API for consumers.
  * All heavy lifting (model loading, inference) happens in the worker thread.
+ *
+ * OPTIMIZED: Uses pre-computed embeddings for fast initialization (~100-200ms)
+ * instead of computing embeddings at runtime (~3+ seconds).
  */
 
-import type { WorkerRequest, WorkerResponse } from './emojiWorker';
-import EmojiWorker from './emojiWorker?worker';
+import type { WorkerRequest, WorkerResponse, PerformanceMetrics } from './emojiWorkerOptimized';
+import EmojiWorker from './emojiWorkerOptimized?worker';
+import { loggingService } from './loggingService';
 
 // Define the state types to match what consumers expect
 type LoadingState = 'idle' | 'loading' | 'ready' | 'error';
@@ -21,6 +25,7 @@ class EmojiLLM {
   private worker: Worker | null = null;
   private loadingPromise: Promise<void> | null = null;
   private initResolver: (() => void) | null = null;
+  private initStartTime: number = 0;
 
   private currentState: EmojiLLMState = {
     state: 'idle',
@@ -32,9 +37,15 @@ class EmojiLLM {
   // Pending request management
   private pendingRequests: Map<
     number,
-    { resolve: (value: string) => void; reject: (reason: unknown) => void }
+    {
+      resolve: (value: string | PerformanceMetrics) => void;
+      reject: (reason: unknown) => void;
+    }
   > = new Map();
   private nextRequestId = 0;
+
+  // Performance tracking
+  private _initTime: number | null = null;
 
   constructor() {
     // We don't initialize the worker immediately to allow for lazy loading
@@ -61,7 +72,8 @@ class EmojiLLM {
 
   private initWorker(): Promise<void> {
     this.setState({ state: 'loading', progress: 0, error: null });
-    console.log('[EmojiLLM] Initializing worker...');
+    this.initStartTime = performance.now();
+    console.log('[EmojiLLM] Initializing worker with pre-computed embeddings...');
 
     return new Promise((resolve, reject) => {
       try {
@@ -88,9 +100,23 @@ class EmojiLLM {
   }
 
   private handleMessage(event: MessageEvent<WorkerResponse>) {
-    const { type, progress, error, emoji, id } = event.data;
+    const { type, progress, error, emoji, id, metrics, logEntry } = event.data;
 
     switch (type) {
+      case 'log':
+        if (logEntry) {
+          loggingService.log({
+            level: logEntry.level,
+            type: logEntry.type as 'webgpu', // Cast to known type since we know it comes from worker
+            message: logEntry.message,
+            stack: logEntry.stack,
+            timestamp: Date.now(),
+            url: window.location.href,
+            userAgent: navigator.userAgent,
+          });
+        }
+        break;
+
       case 'progress':
         if (typeof progress === 'number') {
           this.setState({ progress });
@@ -98,7 +124,8 @@ class EmojiLLM {
         break;
 
       case 'ready':
-        console.log('[EmojiLLM] Worker ready!');
+        this._initTime = performance.now() - this.initStartTime;
+        console.log(`[EmojiLLM] Worker ready in ${this._initTime.toFixed(0)}ms!`);
         this.setState({ state: 'ready', progress: 100 });
         if (this.initResolver) {
           this.initResolver();
@@ -123,6 +150,13 @@ class EmojiLLM {
       case 'result':
         if (id !== undefined && this.pendingRequests.has(id)) {
           this.pendingRequests.get(id)?.resolve(emoji || '🎲');
+          this.pendingRequests.delete(id);
+        }
+        break;
+
+      case 'metrics':
+        if (id !== undefined && this.pendingRequests.has(id) && metrics) {
+          this.pendingRequests.get(id)?.resolve(metrics);
           this.pendingRequests.delete(id);
         }
         break;
@@ -159,7 +193,10 @@ class EmojiLLM {
 
     return new Promise((resolve, reject) => {
       const id = this.nextRequestId++;
-      this.pendingRequests.set(id, { resolve, reject });
+      this.pendingRequests.set(id, {
+        resolve: resolve as (value: string | PerformanceMetrics) => void,
+        reject,
+      });
 
       if (this.worker) {
         this.worker.postMessage({
@@ -180,12 +217,51 @@ class EmojiLLM {
     });
   }
 
+  /**
+   * Get performance metrics from the worker
+   */
+  async getMetrics(): Promise<PerformanceMetrics | null> {
+    if (!this.worker || this.currentState.state !== 'ready') {
+      return null;
+    }
+
+    return new Promise((resolve) => {
+      const id = this.nextRequestId++;
+      this.pendingRequests.set(id, {
+        resolve: resolve as (value: string | PerformanceMetrics) => void,
+        reject: () => resolve(null),
+      });
+
+      if (this.worker) {
+        this.worker.postMessage({
+          type: 'getMetrics',
+          id,
+        } as WorkerRequest);
+      }
+
+      // Timeout
+      setTimeout(() => {
+        if (this.pendingRequests.has(id)) {
+          this.pendingRequests.delete(id);
+          resolve(null);
+        }
+      }, 1000);
+    });
+  }
+
   get ready(): boolean {
     return this.currentState.state === 'ready';
   }
 
   get state(): EmojiLLMState {
     return this.currentState;
+  }
+
+  /**
+   * Get the initialization time in milliseconds
+   */
+  get initTime(): number | null {
+    return this._initTime;
   }
 }
 

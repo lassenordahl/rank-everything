@@ -27,6 +27,8 @@ export async function handleSubmitItem(
   saveToGlobalPool: (text: string, emoji: string) => Promise<void>,
   fetchEmoji: (text: string) => Promise<string>
 ): Promise<void> {
+  console.log('[SubmitItem] Handler called with message:', JSON.stringify(message));
+
   const room = state.room;
   if (!room) return;
 
@@ -113,11 +115,23 @@ export async function handleSubmitItem(
 
   state.addItem(newItem);
 
-  // Save to global pool asynchronously
-  // We don't await this to keep response fast
-  saveToGlobalPool(trimmedText, emoji).catch(console.error);
+  // Save to global pool - await this time to debug
+  console.log(`[SubmitItem] Saving to global pool: "${trimmedText}"`);
+  let saveResult = 'pending';
+  try {
+    await saveToGlobalPool(trimmedText, emoji);
+    saveResult = 'success';
+    console.log('[SubmitItem] Save succeeded');
+  } catch (err) {
+    saveResult = `error: ${err}`;
+    console.error('[SubmitItem] Save failed:', err);
+  }
 
-  broadcast({ type: 'item_submitted', item: newItem });
+  // Include save result in the broadcast for debugging
+  broadcast({
+    type: 'item_submitted',
+    item: { ...newItem, _saveResult: saveResult } as unknown as Item,
+  });
 
   // Advance turn if needed
   if (room.config.submissionMode === 'round-robin') {

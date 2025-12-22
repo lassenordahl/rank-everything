@@ -59,17 +59,7 @@ interface InspectOptions {
   remote?: boolean;
 }
 
-// ============================================================================
-// Path Helpers
-// ============================================================================
-
-function getPaths() {
-  const cliDir = resolve(__dirname, '../..');
-  const rootDir = resolve(cliDir, '../..');
-  const apiDir = resolve(rootDir, 'apps/api');
-  const migrationsDir = resolve(rootDir, 'packages/db-schema/migrations');
-  return { cliDir, rootDir, apiDir, migrationsDir };
-}
+import { getPaths } from '../lib/paths.js';
 
 // ============================================================================
 // Migration File Loader

@@ -1,31 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { COPY } from '../src/lib/copy';
+import { createRoom } from './fixtures';
 
 test.describe('Reliability & Connection Recovery', () => {
   test('should automatically reconnect after network failure', async ({ page }) => {
-    // Add a console listener for this specific test
-    page.on('console', (_page) => {
-      // You can add logging or assertions here based on console messages
-      // For example: console.log(`[Browser Console] ${page.text()}`);
-    });
-
     // 1. Create Room
-    await page.goto('/');
-
-    // Fill nickname
-    await page.getByPlaceholder(COPY.placeholders.nickname).fill('TestHost');
-
-    // Click create room
-    await page.getByRole('button', { name: COPY.buttons.createRoom }).click();
-
-    // Wait for lobby
-    await expect(page.getByText('Room', { exact: false })).toBeVisible();
-
-    // Get room code
-    const roomCodeElement = await page.getByText(/Room [A-Z]{4}/);
-    const roomCodeText = await roomCodeElement.innerText();
-    const roomCode = roomCodeText.split(' ')[1];
-
+    const roomCode = await createRoom(page, 'TestHost');
     expect(roomCode).toBeTruthy();
 
     // 2. Simulate offline mode
@@ -43,7 +23,8 @@ test.describe('Reliability & Connection Recovery', () => {
 
     // Should navigate to game view
     await expect(page.url()).toContain('/game/');
-    await expect(page.getByText(COPY.game.waitingFor)).toBeVisible();
+    // Wait for the game view element
+    await expect(page.getByText(COPY.game.yourTurn)).toBeVisible();
   });
 
   test('should show error boundary on fatal error', async ({ page: _page }) => {

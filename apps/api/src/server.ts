@@ -13,12 +13,6 @@ import { handleUpdateConfig } from './handlers/ws/updateConfig';
 // Grace period before removing disconnected players (60 seconds)
 const DISCONNECT_GRACE_PERIOD_MS = 60 * 1000;
 
-interface Env {
-  DB: unknown; // D1Database
-  ROOM_CACHE: unknown; // KVNamespace
-  WORKER_URL?: string;
-}
-
 export default class GameRoom implements Party.Server {
   // Use the extracted state manager
   private gameState: GameRoomState;
@@ -26,29 +20,60 @@ export default class GameRoom implements Party.Server {
   // Track pending disconnect timeouts for grace period
   private disconnectTimeouts: Map<string, ReturnType<typeof setTimeout>> = new Map();
 
+  /**
+   * Sync room state to D1 via HTTP call to the Worker.
+   * PartyKit managed hosting doesn't have D1 bindings, so we must use HTTP.
+   */
   async syncRoomToDB() {
-    if (!this.gameState.room || !this.room.env) return;
+    if (!this.gameState.room) return;
 
-    // Throttle calling this too frequently if needed, but for now specific events is fine
+    const room = this.gameState.room;
+    const activeCount = Array.from(this.gameState.connections.values()).length;
+
+    console.log(
+      `[Server] syncRoomToDB: Syncing room ${room.id} with ${activeCount} players, status=${room.status}`
+    );
+
     try {
-      const db = (this.room.env as unknown as Env).DB;
-      if (!db) return;
+      const response = await fetch(`${this.apiUrl}/api/rooms/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: room.id,
+          createdAt: room.createdAt,
+          playerCount: activeCount,
+          status: room.status,
+        }),
+      });
 
-      const room = this.gameState.room;
-      // Calculate active player count (connected)
-      const activeCount = Array.from(this.gameState.connections.values()).length;
-
-      const query = `
-        INSERT OR REPLACE INTO rooms (id, created_at, updated_at, player_count, status)
-        VALUES (?, ?, ?, ?, ?)
-      `;
-
-      await db
-        .prepare(query)
-        .bind(room.code, room.createdAt, Date.now(), activeCount, room.status)
-        .run();
+      const text = await response.text();
+      if (!response.ok) {
+        console.error(`[Server] syncRoomToDB failed: ${response.status} ${text}`);
+      } else {
+        console.log(`[Server] syncRoomToDB success: ${text}`);
+      }
     } catch (e) {
-      console.error('[Server] Failed to sync room to DB:', e);
+      console.error('[Server] syncRoomToDB error:', e);
+    }
+  }
+
+  /**
+   * Delete room from D1 via HTTP call to the Worker.
+   */
+  async deleteRoomFromDB() {
+    try {
+      const response = await fetch(`${this.apiUrl}/api/rooms/${this.room.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error(`[Server] deleteRoomFromDB failed: ${response.status} ${text}`);
+      } else {
+        console.log(`[Server] Deleted room ${this.room.id} from DB`);
+      }
+    } catch (e) {
+      console.error('[Server] deleteRoomFromDB error:', e);
     }
   }
 
@@ -57,9 +82,17 @@ export default class GameRoom implements Party.Server {
       room: null,
       connections: new Map(),
     });
-    // Use production URL if not local
-    if (room.env?.WORKER_URL) {
-      this.apiUrl = room.env.WORKER_URL as string;
+
+    // Log initial configuration
+    const envUrl = room.env?.WORKER_URL as string | undefined;
+    console.log(`[Server] Constructor. Configured WORKER_URL: ${envUrl}`);
+
+    // Use production URL if not local (trim to handle env vars with trailing newlines)
+    if (envUrl) {
+      this.apiUrl = envUrl.trim();
+      console.log(`[Server] Set apiUrl to: ${this.apiUrl}`);
+    } else {
+      console.log(`[Server] Defaulting apiUrl to localhost: ${this.apiUrl}`);
     }
   }
 
@@ -78,6 +111,7 @@ export default class GameRoom implements Party.Server {
 
   // Handle HTTP requests (REST API)
   async onRequest(req: Party.Request): Promise<Response> {
+    // ... handler implementation ...
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -128,8 +162,6 @@ export default class GameRoom implements Party.Server {
               corsHeaders
             );
             // Persist state (player added)
-            // Ideally we optimize persistence but correct > fast for now
-            // Ideally we optimize persistence but correct > fast for now
             if (response.ok && this.gameState.room) {
               await this.room.storage.put('room', this.gameState.room);
               await this.syncRoomToDB();
@@ -167,6 +199,11 @@ export default class GameRoom implements Party.Server {
     return new Response('Method not allowed', { status: 405, headers: corsHeaders });
   }
 
+  // ... rest of class ...
+
+  // Need to skip to saveToGlobalPool to replace it too, but replace_file_content works on chunks.
+  // I will just do the constructor first.
+
   // Handle WebSocket connections
   async onConnect(conn: Party.Connection, _ctx: Party.ConnectionContext) {
     // Recover player ID from query param or previous session?
@@ -194,6 +231,7 @@ export default class GameRoom implements Party.Server {
 
       switch (data.type) {
         case 'submit_item':
+          console.log('[Server] onMessage: submit_item received, calling handleSubmitItem');
           await handleSubmitItem(
             data,
             sender,
@@ -374,15 +412,30 @@ export default class GameRoom implements Party.Server {
     return fallbacks[Math.floor(Math.random() * fallbacks.length)] ?? '🎲';
   }
 
+  /**
+   * Save item to global pool via HTTP call to the Worker.
+   * PartyKit managed hosting doesn't have D1 bindings, so we must use HTTP.
+   */
   async saveToGlobalPool(text: string, emoji: string): Promise<void> {
+    const url = `${this.apiUrl}/api/items`;
+    console.log(`[Server] saveToGlobalPool: POST ${url}`, { text, emoji });
+
     try {
-      await fetch(`${this.apiUrl}/api/items`, {
+      const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, emoji }),
       });
+
+      const responseText = await response.text();
+      console.log(`[Server] saveToGlobalPool: Response ${response.status}: ${responseText}`);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${responseText}`);
+      }
     } catch (error) {
-      console.error('Failed to save to global pool:', error);
+      console.error('[Server] saveToGlobalPool: FAILED:', error);
+      throw error; // Re-throw so caller knows it failed
     }
   }
 
@@ -474,6 +527,7 @@ export default class GameRoom implements Party.Server {
               console.log(`Room ${this.room.id} empty after grace period. Deleting.`);
               this.gameState.reset();
               await this.room.storage.delete('room');
+              await this.deleteRoomFromDB();
             } else if (this.gameState.room) {
               await this.room.storage.put('room', this.gameState.room);
               await this.syncRoomToDB();
@@ -533,5 +587,44 @@ export default class GameRoom implements Party.Server {
       this.broadcast({ type: 'room_updated', room: this.gameState.room });
       await this.room.storage.put('room', this.gameState.room);
     }
+  }
+
+  /**
+   * Handle global fetch requests (e.g. /api/*) that are not targeted at a specific room.
+   * This is a static method that runs at the edge for every HTTP request.
+   */
+  static async onFetch(
+    req: Party.Request,
+    lobby: Party.FetchLobby,
+    _ctx: Party.ExecutionContext
+  ): Promise<Response> {
+    const url = new URL(req.url);
+
+    // Proxy /api requests to the Cloudflare Worker
+    if (url.pathname.startsWith('/api')) {
+      // In production, use the deployed worker URL
+      // The WORKER_URL should be set in partykit.json vars
+      const workerOrigin =
+        (lobby.env?.WORKER_URL as string) ||
+        'https://rank-everything-api.lasseanordahl.workers.dev';
+
+      try {
+        const targetUrl = new URL(url.pathname + url.search, workerOrigin);
+
+        console.log(`[Proxy] Forwarding ${req.method} ${url.pathname} to ${targetUrl.toString()}`);
+
+        return await fetch(targetUrl.toString(), {
+          method: req.method,
+          headers: req.headers,
+          body: req.body,
+          redirect: 'follow',
+        });
+      } catch (e) {
+        console.error('[Proxy] Failed to proxy request:', e);
+        return new Response('Proxy Error', { status: 502 });
+      }
+    }
+
+    return new Response('Not found', { status: 404 });
   }
 }

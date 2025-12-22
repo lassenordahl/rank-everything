@@ -32,6 +32,7 @@ function LobbyRoute() {
 
 function App() {
   // Preload the emoji LLM model in the background
+  // Now using single-threaded WASM (14MB vs 21MB) which is safer on mobile
   usePreloadLLM();
 
   return (

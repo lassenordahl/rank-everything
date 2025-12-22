@@ -35,14 +35,14 @@ class MockWorker {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (target as any)[prop] = value;
         return true;
-      }
+      },
     });
   }
 }
 
-// Mock the import for the worker
-vi.mock('./emojiWorker?worker', () => ({
-  default: MockWorker
+// Mock the import for the worker (using the optimized worker path)
+vi.mock('./emojiWorkerOptimized?worker', () => ({
+  default: MockWorker,
 }));
 
 describe('EmojiLLM', () => {
@@ -66,13 +66,15 @@ describe('EmojiLLM', () => {
     const initPromise = emojiLLM.initialize();
 
     // Worker should be instantiated (implied by the mock being used) and receive initialize message
-    expect(postMessageMock).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'initialize'
-    }));
+    expect(postMessageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'initialize',
+      })
+    );
 
     // Simulate worker ready response
     if (workerOnMessage) {
-        workerOnMessage({ data: { type: 'ready' } } as MessageEvent);
+      workerOnMessage({ data: { type: 'ready' } } as MessageEvent);
     }
 
     await initPromise;
@@ -84,21 +86,23 @@ describe('EmojiLLM', () => {
 
     // Simulate ready state if not already
     if (!emojiLLM.ready) {
-        const initPromise = emojiLLM.initialize();
-        if (workerOnMessage) {
-            workerOnMessage({ data: { type: 'ready' } } as MessageEvent);
-        }
-        await initPromise;
+      const initPromise = emojiLLM.initialize();
+      if (workerOnMessage) {
+        workerOnMessage({ data: { type: 'ready' } } as MessageEvent);
+      }
+      await initPromise;
     }
 
     // Start classification
     const classifyPromise = emojiLLM.classifyEmoji('pizza');
 
     // Should verify postMessage was called with correct data
-    expect(postMessageMock).toHaveBeenCalledWith(expect.objectContaining({
-      type: 'classify',
-      text: 'pizza'
-    }));
+    expect(postMessageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'classify',
+        text: 'pizza',
+      })
+    );
 
     // Extract the ID from the last call to respond correctly
     const lastCall = postMessageMock.mock.calls[postMessageMock.mock.calls.length - 1][0];
@@ -106,13 +110,13 @@ describe('EmojiLLM', () => {
 
     // Simulate worker result
     if (workerOnMessage) {
-        workerOnMessage({
-            data: {
-                type: 'result',
-                emoji: '🍕',
-                id: requestId
-            }
-        } as MessageEvent);
+      workerOnMessage({
+        data: {
+          type: 'result',
+          emoji: '🍕',
+          id: requestId,
+        },
+      } as MessageEvent);
     }
 
     const result = await classifyPromise;

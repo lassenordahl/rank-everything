@@ -30,6 +30,7 @@ export async function devCommand(options: DevOptions): Promise<void> {
     console.log('  📡 PartyKit: http://localhost:1999');
     console.log('');
     startService('partykit', ['dev'], apiDir, processes);
+    startService('wrangler', ['dev'], apiDir, processes);
   } else if (options.webOnly) {
     console.log(chalk.cyan('Starting web frontend only...\n'));
     console.log('  🌐 Web: http://localhost:5173');
@@ -38,22 +39,24 @@ export async function devCommand(options: DevOptions): Promise<void> {
   } else {
     console.log(chalk.cyan('Starting all services...\n'));
     console.log('  📡 PartyKit: http://localhost:1999');
+    console.log('  👷 API:      http://localhost:8787');
     console.log('  🌐 Web:      http://localhost:5173');
     console.log('');
     console.log(chalk.dim('Press Ctrl+C to stop all services\n'));
 
-    // Start PartyKit
-    startService('partykit', ['dev'], apiDir, processes, 'API');
+    // Start PartyKit and Worker
+    startService('partykit', ['dev'], apiDir, processes, 'PARTY');
+    startService('wrangler', ['dev'], apiDir, processes, 'API');
 
     // Small delay then start web
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     startService('vite', [], webDir, processes, 'WEB');
   }
 
   // Handle cleanup on exit
   const cleanup = () => {
     console.log(chalk.dim('\n\nShutting down services...'));
-    processes.forEach(proc => {
+    processes.forEach((proc) => {
       try {
         proc.kill('SIGTERM');
       } catch {
@@ -85,14 +88,14 @@ function startService(
   if (prefix && proc.stdout && proc.stderr) {
     proc.stdout.on('data', (data: Buffer) => {
       const lines = data.toString().split('\n').filter(Boolean);
-      lines.forEach(line => {
+      lines.forEach((line) => {
         console.log(chalk.dim(`[${prefix}]`), line);
       });
     });
 
     proc.stderr.on('data', (data: Buffer) => {
       const lines = data.toString().split('\n').filter(Boolean);
-      lines.forEach(line => {
+      lines.forEach((line) => {
         console.log(chalk.dim(`[${prefix}]`), chalk.yellow(line));
       });
     });

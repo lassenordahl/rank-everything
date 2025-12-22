@@ -44,6 +44,7 @@ export class GameSimulator {
         timerEnabled: true,
         timerDuration: 60,
         rankingTimeout: 15,
+        itemsPerGame: 10,
       },
       status: 'lobby',
       players: [],
