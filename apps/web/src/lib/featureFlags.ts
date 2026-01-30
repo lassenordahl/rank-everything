@@ -80,7 +80,15 @@ class FeatureFlagManager {
 
   private exposeToWindow() {
     if (typeof window !== 'undefined') {
-      (window as any).featureFlags = {
+      interface WindowFeatureFlags {
+        get: (flag: keyof FeatureFlags) => boolean;
+        set: (flag: keyof FeatureFlags, value: boolean) => void;
+        toggle: (flag: keyof FeatureFlags) => void;
+        getAll: () => FeatureFlags;
+        reset: () => void;
+        help: () => void;
+      }
+      (window as unknown as { featureFlags?: WindowFeatureFlags }).featureFlags = {
         get: (flag: keyof FeatureFlags) => this.get(flag),
         set: (flag: keyof FeatureFlags, value: boolean) => this.set(flag, value),
         toggle: (flag: keyof FeatureFlags) => this.toggle(flag),

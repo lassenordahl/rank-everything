@@ -1,11 +1,13 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, Share } from 'lucide-react';
+import { Download, Share, Trophy } from 'lucide-react';
 import type { Room } from '@rank-everything/shared-types';
 import { transitions, colors } from '../lib/design-tokens';
 import { PlayerAvatar, RankingList } from './ui';
 import SharePreviewModal from './SharePreviewModal';
+import { calculateAggregatedRankings } from '../lib/aggregateRankings';
+import { COPY } from '../lib/copy';
 
 import { useFeatureFlag } from '../contexts/FeatureFlagContext';
 
@@ -27,10 +29,18 @@ export default function RevealScreen({ room, playerId, isHost, sendMessage }: Re
   const rankingRef = useRef<HTMLDivElement>(null);
 
   const players = room.players;
-  const currentPlayer = players[currentPlayerIndex];
+  // Total options: all players + 1 for "Final Result"
+  const totalOptions = players.length + 1;
+  const isFinalResultView = currentPlayerIndex === players.length;
+  const currentPlayer = isFinalResultView ? null : players[currentPlayerIndex];
 
-  // Guard against undefined player (shouldn't happen but TypeScript requires check)
-  if (!currentPlayer) {
+  // Calculate aggregated rankings for Final Result
+  const aggregatedRankings = useMemo(() => {
+    return calculateAggregatedRankings(players, room.items || []);
+  }, [players, room.items]);
+
+  // Guard against undefined player (when not viewing final result)
+  if (!isFinalResultView && !currentPlayer) {
     return (
       <div className="min-h-full flex items-center justify-center">
         <p className="text-muted">No players found</p>
@@ -38,7 +48,7 @@ export default function RevealScreen({ room, playerId, isHost, sendMessage }: Re
     );
   }
 
-  const isMyList = currentPlayer.id === playerId;
+  const isMyList = currentPlayer?.id === playerId;
 
   // Generate static background for share image using canvas
   const generateBackground = useCallback((width: number, height: number): HTMLCanvasElement => {
@@ -235,13 +245,13 @@ export default function RevealScreen({ room, playerId, isHost, sendMessage }: Re
     }
   };
 
-  // Navigation between players
+  // Navigation between players (includes Final Result as last option)
   const goToPrevPlayer = () => {
-    setCurrentPlayerIndex((prev) => (prev - 1 + players.length) % players.length);
+    setCurrentPlayerIndex((prev) => (prev - 1 + totalOptions) % totalOptions);
   };
 
   const goToNextPlayer = () => {
-    setCurrentPlayerIndex((prev) => (prev + 1) % players.length);
+    setCurrentPlayerIndex((prev) => (prev + 1) % totalOptions);
   };
 
   const handlePlayAgain = () => {
@@ -283,38 +293,54 @@ export default function RevealScreen({ room, playerId, isHost, sendMessage }: Re
         >
           <motion.button
             onClick={goToPrevPlayer}
-            disabled={players.length <= 1}
+            disabled={totalOptions <= 1}
             className="btn-secondary p-2 w-12 h-12 flex items-center justify-center font-bold text-xl disabled:opacity-50 disabled:cursor-not-allowed"
-            whileHover={players.length > 1 ? { scale: 1.1 } : {}}
-            whileTap={players.length > 1 ? { scale: 0.9 } : {}}
+            whileHover={totalOptions > 1 ? { scale: 1.1 } : {}}
+            whileTap={totalOptions > 1 ? { scale: 0.9 } : {}}
             layout
           >
             ←
           </motion.button>
 
           <div className="text-center flex flex-col items-center gap-1 min-w-[160px]">
-            <div className="flex items-center gap-3">
-              <PlayerAvatar
-                name={currentPlayer.nickname}
-                colorIndex={currentPlayerIndex}
-                size="md"
-              />
-              <p className="text-xl font-bold">
-                {currentPlayer.nickname}
-                {isMyList && <span className="text-muted text-sm ml-2">(you)</span>}
-              </p>
-            </div>
-            <p className="text-xs text-black/70 font-mono tracking-wider font-semibold">
-              {currentPlayerIndex + 1} OF {players.length}
-            </p>
+            {isFinalResultView ? (
+              <>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-yellow-400 border-2 border-black flex items-center justify-center">
+                    <Trophy size={20} className="text-black" />
+                  </div>
+                  <p className="text-xl font-bold">{COPY.reveal.finalResult}</p>
+                </div>
+                <p className="text-xs text-black/70 font-mono tracking-wider font-semibold">
+                  {currentPlayerIndex + 1} OF {totalOptions}
+                </p>
+              </>
+            ) : currentPlayer ? (
+              <>
+                <div className="flex items-center gap-3">
+                  <PlayerAvatar
+                    name={currentPlayer.nickname}
+                    colorIndex={currentPlayerIndex}
+                    size="md"
+                  />
+                  <p className="text-xl font-bold">
+                    {currentPlayer.nickname}
+                    {isMyList && <span className="text-muted text-sm ml-2">(you)</span>}
+                  </p>
+                </div>
+                <p className="text-xs text-black/70 font-mono tracking-wider font-semibold">
+                  {currentPlayerIndex + 1} OF {totalOptions}
+                </p>
+              </>
+            ) : null}
           </div>
 
           <motion.button
             onClick={goToNextPlayer}
-            disabled={players.length <= 1}
+            disabled={totalOptions <= 1}
             className="btn-secondary p-2 w-12 h-12 flex items-center justify-center font-bold text-xl disabled:opacity-50 disabled:cursor-not-allowed"
-            whileHover={players.length > 1 ? { scale: 1.1 } : {}}
-            whileTap={players.length > 1 ? { scale: 0.9 } : {}}
+            whileHover={totalOptions > 1 ? { scale: 1.1 } : {}}
+            whileTap={totalOptions > 1 ? { scale: 0.9 } : {}}
             layout
           >
             →
@@ -324,7 +350,7 @@ export default function RevealScreen({ room, playerId, isHost, sendMessage }: Re
         {/* Rankings List */}
         <AnimatePresence mode="wait">
           <motion.div
-            key={currentPlayer.id}
+            key={isFinalResultView ? 'final-result' : (currentPlayer?.id ?? 'unknown')}
             initial={{ opacity: 0, x: 50 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
@@ -333,17 +359,28 @@ export default function RevealScreen({ room, playerId, isHost, sendMessage }: Re
           >
             {/* Display version - fits in UI */}
             <div ref={rankingRef} className="w-full max-w-sm">
-              <RankingList
-                rankings={currentPlayer.rankings}
-                items={room.items || []}
-                itemsPerGame={room.config.itemsPerGame}
-                showHeader={true}
-                headerTitle={`${currentPlayer.nickname}'s Rankings`}
-                animate={true}
-                compareToRankings={
-                  isMyList ? undefined : room.players.find((p) => p.id === playerId)?.rankings
-                }
-              />
+              {isFinalResultView ? (
+                <RankingList
+                  rankings={aggregatedRankings}
+                  items={room.items || []}
+                  itemsPerGame={room.config.itemsPerGame}
+                  showHeader={true}
+                  headerTitle={COPY.reveal.finalResult}
+                  animate={true}
+                />
+              ) : currentPlayer ? (
+                <RankingList
+                  rankings={currentPlayer.rankings}
+                  items={room.items || []}
+                  itemsPerGame={room.config.itemsPerGame}
+                  showHeader={true}
+                  headerTitle={`${currentPlayer.nickname}'s Rankings`}
+                  animate={true}
+                  compareToRankings={
+                    isMyList ? undefined : room.players.find((p) => p.id === playerId)?.rankings
+                  }
+                />
+              ) : null}
 
               <div className="text-center mt-4">
                 <p className="text-xs text-black/70 font-mono uppercase font-medium">

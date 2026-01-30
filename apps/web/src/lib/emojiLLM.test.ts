@@ -99,14 +99,20 @@ describe('EmojiLLM', () => {
   });
 
   it('should return fallback emoji for unknown text', async () => {
-    const result = await emojiLLM.classifyEmoji('xyzabc123');
+    // Use a string that doesn't contain any recognizable keywords
+    // (e.g., "abc" matches 🔤, so avoid common letter combos)
+    const result = await emojiLLM.classifyEmoji('qzxjvk');
     // Should be one of the fallback emojis
-    expect(result).toMatch(/[🎲🎯🎪🎭🎨🎬🎤🎧🎼🎹🎸🎺🎻🥁🎮🎰🎳✨🎇🎆🌟💫⭐🌠🔮🪄🎱🧩🃏🀄🎴🎁🎀🎊🎉🎈🎏🎐]/);
+    expect(result).toMatch(
+      /[🎲🎯🎪🎭🎨🎬🎤🎧🎼🎹🎸🎺🎻🥁🎮🎰🎳✨🎇🎆🌟💫⭐🌠🔮🪄🎱🧩🃏🀄🎴🎁🎀🎊🎉🎈🎏🎐]/u
+    );
   });
 
   it('should return fallback emoji for empty string', async () => {
     const result = await emojiLLM.classifyEmoji('');
-    expect(result).toMatch(/[🎲🎯🎪🎭🎨🎬🎤🎧🎼🎹🎸🎺🎻🥁🎮🎰🎳✨🎇🎆🌟💫⭐🌠🔮🪄🎱🧩🃏🀄🎴🎁🎀🎊🎉🎈🎏🎐]/);
+    expect(result).toMatch(
+      /[🎲🎯🎪🎭🎨🎬🎤🎧🎼🎹🎸🎺🎻🥁🎮🎰🎳✨🎇🎆🌟💫⭐🌠🔮🪄🎱🧩🃏🀄🎴🎁🎀🎊🎉🎈🎏🎐]/u
+    );
   });
 
   it('should handle whitespace', async () => {

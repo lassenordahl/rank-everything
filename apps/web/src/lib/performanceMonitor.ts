@@ -58,8 +58,8 @@ class PerformanceMonitor {
     };
 
     // Chrome/Edge provide memory info
-    if ('memory' in performance && (performance as any).memory) {
-      const mem = (performance as any).memory as MemoryInfo;
+    if ('memory' in performance && (performance as unknown as { memory?: MemoryInfo }).memory) {
+      const mem = (performance as unknown as { memory: MemoryInfo }).memory;
       snapshot.memory = {
         usedMB: Math.round(mem.usedJSHeapSize / 1024 / 1024),
         totalMB: Math.round(mem.totalJSHeapSize / 1024 / 1024),
@@ -84,11 +84,11 @@ class PerformanceMonitor {
     return snapshot;
   }
 
-  logError(type: string, error: any) {
+  logError(type: string, error: unknown) {
     const errorInfo = {
       type,
-      message: error?.message || String(error),
-      stack: error?.stack,
+      message: (error as { message?: string })?.message || String(error),
+      stack: (error as { stack?: string })?.stack,
       timestamp: Date.now(),
       memory: this.getMemoryUsage(),
     };
@@ -106,8 +106,8 @@ class PerformanceMonitor {
   }
 
   getMemoryUsage(): { usedMB: number; percentUsed: number } | null {
-    if ('memory' in performance && (performance as any).memory) {
-      const mem = (performance as any).memory as MemoryInfo;
+    if ('memory' in performance && (performance as unknown as { memory?: MemoryInfo }).memory) {
+      const mem = (performance as unknown as { memory: MemoryInfo }).memory;
       return {
         usedMB: Math.round(mem.usedJSHeapSize / 1024 / 1024),
         percentUsed: Math.round((mem.usedJSHeapSize / mem.jsHeapSizeLimit) * 100),
@@ -116,7 +116,7 @@ class PerformanceMonitor {
     return null;
   }
 
-  getStoredErrors(): any[] {
+  getStoredErrors(): unknown[] {
     try {
       const stored = localStorage.getItem('perf_errors');
       return stored ? JSON.parse(stored) : [];
@@ -139,7 +139,7 @@ class PerformanceMonitor {
   getReport(): {
     currentMemory: { usedMB: number; percentUsed: number } | null;
     recentSnapshots: PerformanceSnapshot[];
-    recentErrors: any[];
+    recentErrors: unknown[];
     uptime: number;
   } {
     return {
@@ -168,5 +168,5 @@ export const performanceMonitor = new PerformanceMonitor();
 
 // Expose to window for debugging in console
 if (typeof window !== 'undefined') {
-  (window as any).perfMonitor = performanceMonitor;
+  (window as unknown as { perfMonitor?: PerformanceMonitor }).perfMonitor = performanceMonitor;
 }

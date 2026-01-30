@@ -78,6 +78,8 @@ export const COPY = {
     exit: 'Exit',
     gameOver: 'Game Over!',
     viewRankings: 'View Rankings',
+    finalResult: 'Final Result',
+    finalResultDescription: 'Combined rankings from all players',
   },
 
   // Settings (editable in lobby)
