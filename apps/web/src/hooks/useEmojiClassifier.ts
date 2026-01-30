@@ -45,13 +45,8 @@ export function useEmojiClassifier(text: string, debounceMs: number = 500): Emoj
   const abortRef = useRef(false);
   const lastTextRef = useRef('');
 
-  useEffect(() => {
-    // Start initializing the model as soon as this hook is used (component mounted)
-    // This ensures it's ready/loading when the user starts typing
-    emojiLLM.initialize().catch(() => {
-      // Ignore errors here, they will be caught during classification
-    });
-  }, []);
+  // No initialization needed anymore - simple matcher is always ready
+  // Keeping this comment for context on why this effect was removed
 
   useEffect(() => {
     // Clear previous timeout
@@ -115,34 +110,12 @@ export function useEmojiClassifier(text: string, debounceMs: number = 500): Emoj
 }
 
 /**
- * Hook to preload the LLM model
- * Call this early in the app lifecycle to start loading the model in the background
- * @param options.skip - If true, don't preload (useful for mobile to save memory)
+ * Hook to preload the LLM model (now a no-op)
+ * Previously loaded ML model in background. Now using simple keyword matching.
+ * Kept for API compatibility but does nothing.
+ * @param _options - Previously used to skip preload. Now unused but kept for compatibility.
  */
-export function usePreloadLLM(options?: { skip?: boolean }) {
-  useEffect(() => {
-    // Skip if requested (e.g., on mobile to prevent OOM)
-    if (options?.skip) {
-      return;
-    }
-
-    // Use requestIdleCallback for non-blocking load if available
-    if ('requestIdleCallback' in window) {
-      const id = window.requestIdleCallback(
-        () => {
-          emojiLLM.initialize().catch(console.error);
-        },
-        { timeout: 5000 }
-      );
-
-      return () => window.cancelIdleCallback(id);
-    } else {
-      // Fallback: load after short delay
-      const timeout = setTimeout(() => {
-        emojiLLM.initialize().catch(console.error);
-      }, 2000);
-
-      return () => clearTimeout(timeout);
-    }
-  }, [options?.skip]);
+export function usePreloadLLM(_options?: { skip?: boolean }) {
+  // No-op: Simple keyword matcher doesn't need preloading
+  // Kept for API compatibility with existing code
 }

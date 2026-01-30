@@ -20,13 +20,13 @@
     "benchmark:embeddings": "tsx scripts/benchmarkEmbeddings.ts"
   },
   "dependencies": {
-    "@huggingface/transformers": "^3.8.1",
     "@rank-everything/qrcode": "workspace:*",
     "@rank-everything/shared-types": "workspace:*",
     "@rank-everything/validation": "workspace:^",
     "@tanstack/react-query": "^5.17.19",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
+    "emojilib": "^4.0.2",
     "framer-motion": "^12.23.26",
     "html2canvas": "^1.4.1",
     "lucide-react": "^0.330.0",
