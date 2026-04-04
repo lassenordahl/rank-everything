@@ -580,6 +580,26 @@ export default class GameRoom implements Party.Server {
     if (rankingTimedOut) {
       console.log(`Ranking timeout: auto-assigned random ranks for room ${this.room.id}`);
       stateChanged = true;
+
+      // Check if game should end after auto-assigning ranks
+      // (all players may now have ranked all items)
+      const { items, players, config } = this.gameState.room;
+      const targetCount = config.itemsPerGame;
+
+      if (items.length >= targetCount) {
+        const allDone = players.every((p) => {
+          const rankCount = Object.keys(p.rankings).length;
+          const isCaughtUp = !p.isCatchingUp;
+          return rankCount >= targetCount && isCaughtUp;
+        });
+
+        if (allDone) {
+          console.log('[Server] Game ended after ranking timeout auto-assignment.');
+          this.gameState.endGame();
+          this.broadcast({ type: 'game_ended' });
+          await this.syncRoomToDB();
+        }
+      }
     }
 
     if (stateChanged) {

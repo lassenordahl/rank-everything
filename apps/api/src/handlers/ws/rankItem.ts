@@ -39,8 +39,14 @@ export function handleRankItem(
     (key) => player.rankings[key] === ranking
   );
   if (existingItemId && existingItemId !== itemId) {
-    // Optional: Clear the old slot or error
-    // For now we just overwrite
+    // Swap: if the current item already had a ranking, move the displaced item there
+    const currentItemOldRanking = player.rankings[itemId];
+    if (currentItemOldRanking !== undefined) {
+      player.rankings[existingItemId] = currentItemOldRanking;
+    } else {
+      // Current item had no ranking yet, so just clear the displaced item's slot
+      delete player.rankings[existingItemId];
+    }
   }
 
   player.rankings[itemId] = ranking;
