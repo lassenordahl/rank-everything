@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Share, Download } from 'lucide-react';
 import { transitions } from '../lib/design-tokens';
+import { useHaptics } from '../hooks/useHaptics';
 import { AnimatedBackground } from './AnimatedBackground';
 
 interface SharePreviewModalProps {
@@ -16,6 +17,8 @@ export default function SharePreviewModal({
   imageBlob,
   imageDataUrl,
 }: SharePreviewModalProps) {
+  const { trigger: haptic } = useHaptics();
+
   const handleShare = async () => {
     if (!imageBlob) return;
 
@@ -87,13 +90,18 @@ export default function SharePreviewModal({
               ) : (
                 <div className="aspect-[4/5] w-full flex flex-col items-center justify-center gap-4 py-20 text-black/50">
                   <div className="w-10 h-10 border-4 border-current border-t-transparent rounded-full animate-spin" />
-                  <span className="font-mono font-bold tracking-widest text-sm uppercase">Generating...</span>
+                  <span className="font-mono font-bold tracking-widest text-sm uppercase">
+                    Generating...
+                  </span>
                 </div>
               )}
 
               {/* Close Button - positioned on corner of card for style */}
               <button
-                onClick={onClose}
+                onClick={() => {
+                  haptic('light');
+                  onClose();
+                }}
                 className="absolute -top-4 -right-4 bg-white text-black p-2 border-2 border-black hover:scale-110 active:scale-95 transition-transform z-10 shadow-[2px_2px_0_0_#000]"
               >
                 <X size={20} strokeWidth={3} />
@@ -102,14 +110,17 @@ export default function SharePreviewModal({
 
             <p className="text-black/70 text-center font-medium px-4">
               {imageDataUrl
-                ? "Tap to share, or long-press to save image"
-                : "Creating your custom ranking card..."}
+                ? 'Tap to share, or long-press to save image'
+                : 'Creating your custom ranking card...'}
             </p>
 
             {/* Actions */}
             <div className="flex gap-3 w-full">
               <button
-                onClick={handleShare}
+                onClick={() => {
+                  haptic('success');
+                  handleShare();
+                }}
                 disabled={!imageBlob}
                 className="btn-primary flex-1 flex items-center justify-center gap-2 py-4"
               >
@@ -119,7 +130,10 @@ export default function SharePreviewModal({
 
               {/* Desktop download button fallback, usually hidden on mobile by share logic but good to have */}
               <button
-                onClick={handleDownload}
+                onClick={() => {
+                  haptic('success');
+                  handleDownload();
+                }}
                 disabled={!imageDataUrl}
                 className="btn-secondary px-4 flex items-center justify-center"
                 title="Download"

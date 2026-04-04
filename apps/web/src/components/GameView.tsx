@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameRoom } from '../hooks/useGameRoom';
 import { useEmojiClassifier } from '../hooks/useEmojiClassifier';
+import { useHaptics } from '../hooks/useHaptics';
 import type { Item } from '@rank-everything/shared-types';
 import RevealScreen from './RevealScreen';
 import { ApiClient } from '../lib/api';
@@ -27,6 +28,7 @@ export default function GameView() {
   const [showQRModal, setShowQRModal] = useState(false);
 
   const { room, sendMessage, isMyTurn, isHost, playerId } = useGameRoom(code || '');
+  const { trigger: haptic } = useHaptics();
 
   // Emoji classification from local LLM
   const {
@@ -121,6 +123,7 @@ export default function GameView() {
   const handleSubmitItem = useCallback(() => {
     if (!inputText.trim() || !isMyTurn) return;
 
+    haptic('medium');
     sendMessage(
       JSON.stringify({
         type: 'submit_item',
@@ -130,11 +133,12 @@ export default function GameView() {
     );
 
     setInputText('');
-  }, [inputText, isMyTurn, sendMessage, classifiedEmoji]);
+  }, [inputText, isMyTurn, sendMessage, classifiedEmoji, haptic]);
 
   // Fetch random item and prepopulate the input field
   const handleRandomRoll = useCallback(async () => {
     if (isLoadingRandom) return;
+    haptic('light');
     setIsLoadingRandom(true);
     try {
       const data = await ApiClient.getRandomItems(1);
@@ -146,12 +150,13 @@ export default function GameView() {
     } finally {
       setIsLoadingRandom(false);
     }
-  }, [isLoadingRandom]);
+  }, [isLoadingRandom, haptic]);
 
   const handleRankItem = useCallback(
     (ranking: number) => {
       if (!effectiveCurrentItem) return;
 
+      haptic('selection');
       sendMessage(
         JSON.stringify({
           type: 'rank_item',
@@ -163,7 +168,7 @@ export default function GameView() {
       // Clear manual override - derived state will take over
       setCurrentItem(null);
     },
-    [effectiveCurrentItem, sendMessage]
+    [effectiveCurrentItem, sendMessage, haptic]
   );
 
   // Show reveal screen if game has ended
