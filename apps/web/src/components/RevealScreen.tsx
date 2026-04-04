@@ -8,6 +8,7 @@ import { PlayerAvatar, RankingList } from './ui';
 import SharePreviewModal from './SharePreviewModal';
 import { calculateAggregatedRankings } from '../lib/aggregateRankings';
 import { COPY } from '../lib/copy';
+import { useHaptics } from '../hooks/useHaptics';
 
 import { useFeatureFlag } from '../contexts/FeatureFlagContext';
 
@@ -21,6 +22,7 @@ interface RevealScreenProps {
 export default function RevealScreen({ room, playerId, isHost, sendMessage }: RevealScreenProps) {
   const navigate = useNavigate();
   const showShare = useFeatureFlag('share_results');
+  const { trigger: haptic } = useHaptics();
   const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [shareBlob, setShareBlob] = useState<Blob | null>(null);
@@ -247,14 +249,17 @@ export default function RevealScreen({ room, playerId, isHost, sendMessage }: Re
 
   // Navigation between players (includes Final Result as last option)
   const goToPrevPlayer = () => {
+    haptic('selection');
     setCurrentPlayerIndex((prev) => (prev - 1 + totalOptions) % totalOptions);
   };
 
   const goToNextPlayer = () => {
+    haptic('selection');
     setCurrentPlayerIndex((prev) => (prev + 1) % totalOptions);
   };
 
   const handlePlayAgain = () => {
+    haptic('success');
     if (isHost) {
       // Host sends reset_room event to reset room for all players
       sendMessage(JSON.stringify({ type: 'reset_room' }));
@@ -265,6 +270,7 @@ export default function RevealScreen({ room, playerId, isHost, sendMessage }: Re
   };
 
   const handleExit = () => {
+    haptic('light');
     localStorage.removeItem('playerId');
     localStorage.removeItem('roomCode');
     navigate('/');
@@ -402,7 +408,10 @@ export default function RevealScreen({ room, playerId, isHost, sendMessage }: Re
           {showShare && (
             <div className="flex gap-3 w-full">
               <motion.button
-                onClick={handleShare}
+                onClick={() => {
+                  haptic('success');
+                  handleShare();
+                }}
                 className="btn-primary flex-1 inset-shadow flex items-center justify-center gap-3"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -411,7 +420,10 @@ export default function RevealScreen({ room, playerId, isHost, sendMessage }: Re
                 <span>Share Rankings</span>
               </motion.button>
               <motion.button
-                onClick={handleDownload}
+                onClick={() => {
+                  haptic('success');
+                  handleDownload();
+                }}
                 className="btn-secondary px-4 flex items-center justify-center"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}

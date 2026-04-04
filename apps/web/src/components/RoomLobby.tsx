@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameRoom } from '../hooks/useGameRoom';
 import { useJoinRoom, useStartGame } from '../hooks/useGameMutations';
+import { useHaptics } from '../hooks/useHaptics';
 import { MAX_NICKNAME_LENGTH } from '@rank-everything/validation';
 import { COPY } from '../lib/copy';
 import { transitions } from '../lib/design-tokens';
@@ -38,6 +39,7 @@ export default function RoomLobby() {
 
   const joinRoom = useJoinRoom();
   const startGame = useStartGame();
+  const { trigger: haptic } = useHaptics();
 
   const handleStartGame = async () => {
     if (!code) return;
@@ -81,56 +83,59 @@ export default function RoomLobby() {
   if (!isJoined) {
     return (
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={transitions.default}
-            className="w-full max-w-sm flex flex-col gap-10"
-          >
-            <div className="text-center">
-              <p className="text-xs font-mono uppercase tracking-[0.2em] text-black/70 font-medium mb-4">
-                {COPY.labels.joinRoomTitle}
-              </p>
-              <h1 className="text-6xl font-black tracking-tighter uppercase mb-2">{code}</h1>
-              <p className="font-mono text-xs uppercase text-black/70 font-medium">
-                {COPY.labels.enterNickname}
-              </p>
-            </div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={transitions.default}
+          className="w-full max-w-sm flex flex-col gap-10"
+        >
+          <div className="text-center">
+            <p className="text-xs font-mono uppercase tracking-[0.2em] text-black/70 font-medium mb-4">
+              {COPY.labels.joinRoomTitle}
+            </p>
+            <h1 className="text-6xl font-black tracking-tighter uppercase mb-2">{code}</h1>
+            <p className="font-mono text-xs uppercase text-black/70 font-medium">
+              {COPY.labels.enterNickname}
+            </p>
+          </div>
 
-            <div className="flex flex-col gap-4">
-              <Input
-                placeholder={COPY.placeholders.nickname}
-                value={nickname}
-                onChange={(e) => setNickname(e.target.value)}
-                maxLength={MAX_NICKNAME_LENGTH}
-                autoFocus
-                className="text-center text-lg bg-white border-black"
-              />
+          <div className="flex flex-col gap-4">
+            <Input
+              placeholder={COPY.placeholders.nickname}
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              maxLength={MAX_NICKNAME_LENGTH}
+              autoFocus
+              className="text-center text-lg bg-white border-black"
+            />
 
-              <AnimatePresence>
-                {error && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    className="p-3 border-2 border-red-500 bg-red-50 text-red-500 text-xs font-mono font-bold uppercase"
-                  >
-                    {error}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="p-3 border-2 border-red-500 bg-red-50 text-red-500 text-xs font-mono font-bold uppercase"
+                >
+                  {error}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-              <motion.button
-                onClick={handleJoin}
-                disabled={!nickname.trim() || joinRoom.isPending}
-                className="btn-primary"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                {joinRoom.isPending ? COPY.pending.joining : COPY.buttons.join}
-              </motion.button>
-            </div>
-            </motion.div>
+            <motion.button
+              onClick={() => {
+                haptic('medium');
+                handleJoin();
+              }}
+              disabled={!nickname.trim() || joinRoom.isPending}
+              className="btn-primary"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              {joinRoom.isPending ? COPY.pending.joining : COPY.buttons.join}
+            </motion.button>
+          </div>
+        </motion.div>
       </div>
     );
   }
@@ -179,6 +184,7 @@ export default function RoomLobby() {
                 <span>{COPY.settings.timerEnabled}</span>
                 <motion.button
                   onClick={() => {
+                    haptic('light');
                     sendMessage(
                       JSON.stringify({
                         type: 'update_config',
@@ -280,6 +286,7 @@ export default function RoomLobby() {
           >
             <motion.button
               onClick={() => {
+                haptic('light');
                 localStorage.removeItem('playerId');
                 localStorage.removeItem('roomCode');
                 navigate('/');
@@ -292,7 +299,10 @@ export default function RoomLobby() {
               <span>Leave</span>
             </motion.button>
             <motion.button
-              onClick={handleStartGame}
+              onClick={() => {
+                haptic('heavy');
+                handleStartGame();
+              }}
               disabled={!(room && room.players.length >= 1) || startGame.isPending}
               className="btn-primary flex-[2]"
               whileHover={{ scale: 1.02 }}
@@ -320,6 +330,7 @@ export default function RoomLobby() {
             </motion.div>
             <motion.button
               onClick={() => {
+                haptic('light');
                 localStorage.removeItem('playerId');
                 localStorage.removeItem('roomCode');
                 navigate('/');

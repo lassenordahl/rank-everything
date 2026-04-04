@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 
 import { COPY } from '../../lib/copy';
+import { useHaptics } from '../../hooks/useHaptics';
 
 export interface RoomCodeDisplayProps {
   /** 4-letter room code */
@@ -28,8 +29,10 @@ export function RoomCodeDisplay({
   onQRClick,
 }: RoomCodeDisplayProps) {
   const [copied, setCopied] = useState(false);
+  const { trigger: haptic } = useHaptics();
 
   const handleCopy = () => {
+    haptic('light');
     navigator.clipboard.writeText(window.location.href);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

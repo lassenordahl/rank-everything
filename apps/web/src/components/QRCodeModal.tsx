@@ -8,6 +8,7 @@
 import { useState, useEffect } from 'react';
 import { generateQRCode } from '@rank-everything/qrcode';
 import { COPY } from '../lib/copy';
+import { useHaptics } from '../hooks/useHaptics';
 import { AnimatedBackground } from './AnimatedBackground';
 
 interface QRCodeModalProps {
@@ -19,6 +20,7 @@ interface QRCodeModalProps {
 export default function QRCodeModal({ roomCode, isOpen, onClose }: QRCodeModalProps) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { trigger: haptic } = useHaptics();
 
   useEffect(() => {
     if (!isOpen) return;
@@ -80,7 +82,13 @@ export default function QRCodeModal({ roomCode, isOpen, onClose }: QRCodeModalPr
         </div>
 
         {/* Close Button with inset */}
-        <button onClick={onClose} className="btn-primary mt-4 inset-shadow">
+        <button
+          onClick={() => {
+            haptic('light');
+            onClose();
+          }}
+          className="btn-primary mt-4 inset-shadow"
+        >
           {COPY.buttons.close}
         </button>
       </div>

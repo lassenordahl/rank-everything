@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCreateRoom, useJoinRoom } from '../hooks/useGameMutations';
+import { useHaptics } from '../hooks/useHaptics';
 import { MAX_NICKNAME_LENGTH, ROOM_CODE_LENGTH } from '@rank-everything/validation';
 import { COPY } from '../lib/copy';
 import { transitions } from '../lib/design-tokens';
@@ -16,6 +17,7 @@ export default function HomePage() {
 
   const createRoom = useCreateRoom();
   const joinRoom = useJoinRoom();
+  const { trigger: haptic } = useHaptics();
 
   useEffect(() => {
     // Check for error param from redirect
@@ -96,7 +98,10 @@ export default function HomePage() {
 
                   <div className="flex flex-col gap-3">
                     <motion.button
-                      onClick={() => setMode('create')}
+                      onClick={() => {
+                        haptic('medium');
+                        setMode('create');
+                      }}
                       className="btn-primary"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
@@ -105,7 +110,10 @@ export default function HomePage() {
                     </motion.button>
 
                     <motion.button
-                      onClick={() => setMode('join')}
+                      onClick={() => {
+                        haptic('medium');
+                        setMode('join');
+                      }}
                       className="btn-secondary"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
@@ -140,7 +148,10 @@ export default function HomePage() {
                     />
 
                     <motion.button
-                      onClick={handleCreateRoom}
+                      onClick={() => {
+                        haptic('medium');
+                        handleCreateRoom();
+                      }}
                       disabled={!nickname.trim() || createRoom.isPending}
                       className="btn-primary"
                       whileHover={{ scale: 1.02 }}
@@ -150,7 +161,10 @@ export default function HomePage() {
                     </motion.button>
 
                     <motion.button
-                      onClick={() => setMode('home')}
+                      onClick={() => {
+                        haptic('light');
+                        setMode('home');
+                      }}
                       className="btn-secondary"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
@@ -193,7 +207,10 @@ export default function HomePage() {
                     />
 
                     <motion.button
-                      onClick={handleJoinRoom}
+                      onClick={() => {
+                        haptic('medium');
+                        handleJoinRoom();
+                      }}
                       disabled={
                         !nickname.trim() ||
                         joinCode.length !== ROOM_CODE_LENGTH ||
@@ -207,7 +224,10 @@ export default function HomePage() {
                     </motion.button>
 
                     <motion.button
-                      onClick={() => setMode('home')}
+                      onClick={() => {
+                        haptic('light');
+                        setMode('home');
+                      }}
                       className="btn-secondary"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
